@@ -1,23 +1,24 @@
-import { promisify } from 'util';
-import firebase from 'firebase';
-import fs from 'fs';
-import ig from 'node-ig-api';
-import { error } from 'console';
-
+import { promisify } from "util";
+import firebase from "firebase";
+import fs from "fs";
+import ig from "node-ig-api";
+import { error } from "console";
 
 export class UtilsService {
-  constructor() { }
-
+  constructor() {}
 
   /**
    * Parse et push les donnees CSV.
    */
   async getDataFromFile(): Promise<any> {
     const result = [];
-    const content = await promisify(fs.readFile)('src\\assets\\EURUSD60.csv', 'UTF-8');
-    const csvToRowArray = content.split('\r\n');
+    const content = await promisify(fs.readFile)(
+      "src\\assets\\EURUSD60.csv",
+      "UTF-8"
+    );
+    const csvToRowArray = content.split("\r\n");
     for (let index = 1; index < csvToRowArray.length - 1; index++) {
-      const element = csvToRowArray[index].split('\t'); // d, o, h, l, c, v
+      const element = csvToRowArray[index].split("\t"); // d, o, h, l, c, v
       result.push({
         date: element[0],
         open: parseFloat(element[1]),
@@ -30,37 +31,51 @@ export class UtilsService {
     return result;
   }
 
-
   /**
    * Parse les données depuis IG.
    */
   async parseData(ticker: string, resolution: string, max: number) {
     const result = [];
-    const res = await ig.get('/prices/CS.D.' + ticker + '.CFD.IP?resolution=' + resolution + '&max=' + max + '&pageSize=0', 3);
+    const res = await ig.get(
+      "/prices/CS.D." +
+        ticker +
+        ".CFD.IP?resolution=" +
+        resolution +
+        "&max=" +
+        max +
+        "&pageSize=0",
+      3
+    );
     for (let i = 0; i < res.body.prices.length; i++) {
       result.push({
         open: res.body.prices[i].openPrice.bid,
         close: res.body.prices[i].closePrice.bid,
         high: res.body.prices[i].highPrice.bid,
-        low: res.body.prices[i].lowPrice.bid
+        low: res.body.prices[i].lowPrice.bid,
       });
     }
     return result;
   }
 
-
   /**
    * Permet de retourner le R:R
    */
-  getRiskReward(entryPrice: number, initialStopLoss: number, closedPrice: number): number {
-    const result = this.round(Math.abs(closedPrice - entryPrice) / Math.abs(entryPrice - initialStopLoss), 2);
+  getRiskReward(
+    entryPrice: number,
+    initialStopLoss: number,
+    closedPrice: number
+  ): number {
+    const result = this.round(
+      Math.abs(closedPrice - entryPrice) /
+        Math.abs(entryPrice - initialStopLoss),
+      2
+    );
     if (isNaN(result)) {
       return -1;
     } else {
       return result;
     }
   }
-
 
   /**
    * Retourne la valeur maximale en fonction de la source et de lookback
@@ -80,7 +95,6 @@ export class UtilsService {
     return max;
   }
 
-
   /**
    * Retourne la valeur minimale en fonction de la source et de lookback
    */
@@ -99,7 +113,6 @@ export class UtilsService {
     return min;
   }
 
-
   /**
    * Arrondi un nombre avec une certaine précision.
    */
@@ -107,7 +120,6 @@ export class UtilsService {
     const multiplier = Math.pow(10, precision || 0);
     return Math.round(value * multiplier) / multiplier;
   }
-
 
   /**
    * Retourne l'équivalent HeikenAshi
@@ -117,7 +129,11 @@ export class UtilsService {
 
     for (let j = 0; j < source.length; j++) {
       if (j === 0) {
-        const _close = this.round((source[j].open + source[j].high + source[j].low + source[j].close) / 4, 5);
+        const _close = this.round(
+          (source[j].open + source[j].high + source[j].low + source[j].close) /
+            4,
+          5
+        );
         const _open = this.round((source[j].open + source[j].close) / 2, 5);
         result.push({
           close: _close,
@@ -128,13 +144,23 @@ export class UtilsService {
           bear: _close < _open,
         });
       } else {
-        const haCloseVar = (source[j].open + source[j].high + source[j].low + source[j].close) / 4;
-        const haOpenVar = (result[result.length - 1].open + result[result.length - 1].close) / 2;
+        const haCloseVar =
+          (source[j].open + source[j].high + source[j].low + source[j].close) /
+          4;
+        const haOpenVar =
+          (result[result.length - 1].open + result[result.length - 1].close) /
+          2;
         result.push({
           close: this.round(haCloseVar, 5),
           open: this.round(haOpenVar, 5),
-          low: this.round(Math.min(source[j].low, Math.max(haOpenVar, haCloseVar)), 5),
-          high: this.round(Math.max(source[j].high, Math.max(haOpenVar, haCloseVar)), 5),
+          low: this.round(
+            Math.min(source[j].low, Math.max(haOpenVar, haCloseVar)),
+            5
+          ),
+          high: this.round(
+            Math.max(source[j].high, Math.max(haOpenVar, haCloseVar)),
+            5
+          ),
           bull: haCloseVar > haOpenVar,
           bear: haCloseVar < haOpenVar,
         });
@@ -142,7 +168,6 @@ export class UtilsService {
     }
     return result;
   }
-
 
   /**
    * Retourne une moving average en fonction de la période.
@@ -161,28 +186,10 @@ export class UtilsService {
     }
   }
 
-
-  dataArrayBuilder(epic: any, allData: any, timeFrame: any) {
-    for (let i = 0; i < epic.length; i++) {
-      for (let j = 0; j < timeFrame.length; j++) {
-        const tickerTf = this.getTicker(epic[i]) + '_' + timeFrame[j] + 'MINUTE';
-        allData[tickerTf] = [];
-        allData[tickerTf].ohlc = [];
-        allData[tickerTf].timeProcessed = [];
-        allData[tickerTf].snapshot_Long = undefined;
-        allData[tickerTf].snapshot_Short = undefined;
-        allData[tickerTf].inLong = false;
-        allData[tickerTf].inShort = false;
-        allData[tickerTf].entryPrice_Long = 0;
-        allData[tickerTf].entryPrice_Short = 0;
-        allData[tickerTf].initialStopLoss_Long = 0;
-        allData[tickerTf].initialStopLoss_Short = 0;
-        allData[tickerTf].updatedStopLoss_Long = 0;
-        allData[tickerTf].updatedStopLoss_Short = 0;
-        allData[tickerTf].takeProfit_Long = 0;
-        allData[tickerTf].takeProfit_Short = 0;
-      }
-    }
+  dataArrayBuilder(allData: any) {
+    allData = [];
+    allData.ohlc = [];
+    allData.timeProcessed = [];
     return allData;
   }
 
@@ -190,28 +197,26 @@ export class UtilsService {
    * Retourne le ticker timeframe.
    */
   getTickerTimeframe(string: string) {
-    const str = string.split('.');
-    const tf = str[4].split(':');
-    return this.getTicker(string) + '_' + tf[1];
+    const str = string.split(".");
+    const tf = str[4].split(":");
+    return this.getTicker(string) + "_" + tf[1];
   }
 
   /**
    * Retourne le ticker.
    */
   getTicker(string: string) {
-    const str = string.split('.');
+    const str = string.split(".");
     return str[2];
   }
-
 
   /**
    * Permet d'arrêter le processus.
    */
   stopProcess() {
-    console.log('Process will be stopped !');
+    console.log("Process will be stopped !");
     process.exit();
   }
-
 
   /**
    * Retourne la date avec décalage horaire.
@@ -219,19 +224,36 @@ export class UtilsService {
   getDate(): any {
     let date = new Date();
     const year = date.getFullYear();
-    const month = '0' + (date.getMonth() + 1);
-    const day = '0' + date.getDate();
-    const hours = '0' + date.getHours();
-    const minutes = '0' + date.getMinutes();
-    const second = '0' + date.getSeconds();
-    return day.substr(-2) + '/' + month.substr(-2) + '/' + year + ' ' + hours.substr(-2) + ':' + minutes.substr(-2) + ':' + second.substr(-2);
+    const month = "0" + (date.getMonth() + 1);
+    const day = "0" + date.getDate();
+    const hours = "0" + date.getHours();
+    const minutes = "0" + date.getMinutes();
+    const second = "0" + date.getSeconds();
+    return (
+      day.substr(-2) +
+      "/" +
+      month.substr(-2) +
+      "/" +
+      year +
+      " " +
+      hours.substr(-2) +
+      ":" +
+      minutes.substr(-2) +
+      ":" +
+      second.substr(-2)
+    );
   }
-
 
   /**
    * Insert chaque trade dans Firebase.
    */
-  insertTrade(tickerTfData: any, $tickerTf: string, $winTrades: any, $loseTrades: any, $allTrades: any) {
+  insertTrade(
+    tickerTfData: any,
+    $tickerTf: string,
+    $winTrades: any,
+    $loseTrades: any,
+    $allTrades: any
+  ) {
     try {
       let $direction: string;
       let $entryTime: any;
@@ -241,51 +263,67 @@ export class UtilsService {
       let time: number;
 
       if (tickerTfData.inLong) {
-        $direction = 'Long';
+        $direction = "Long";
         $entryTime = tickerTfData.entryTime_Long;
         $entryPrice = tickerTfData.entryPrice_Long;
         $stopLoss = tickerTfData.initialStopLoss_Long;
         $takeProfit = tickerTfData.takeProfit_Long;
         time = tickerTfData.snapshot_Long.time;
       } else if (tickerTfData.inShort) {
-        $direction = 'Short';
+        $direction = "Short";
         $entryTime = tickerTfData.entryTime_Short;
         $entryPrice = tickerTfData.entryPrice_Short;
         $stopLoss = tickerTfData.initialStopLoss_Short;
         $takeProfit = tickerTfData.takeProfit_Short;
         time = tickerTfData.snapshot_Short.time;
       } else {
-        throw new error;
+        throw new error();
       }
 
-      firebase.database().ref('/trade').push({
-        direction: $direction,
-        tickerTf: $tickerTf,
-        setupTime: tickerTfData.ohlc[time].date,
-        entryTime: $entryTime,
-        exitTime: this.getDate(),
-        entryPrice: $entryPrice,
-        stopLoss: $stopLoss,
-        takeProfit: $takeProfit,
-        rr: this.getRiskReward($entryPrice, $stopLoss, $takeProfit)
-      });
+      firebase
+        .database()
+        .ref("/trade")
+        .push({
+          direction: $direction,
+          tickerTf: $tickerTf,
+          setupTime: tickerTfData.ohlc[time].date,
+          entryTime: $entryTime,
+          exitTime: this.getDate(),
+          entryPrice: $entryPrice,
+          stopLoss: $stopLoss,
+          takeProfit: $takeProfit,
+          rr: this.getRiskReward($entryPrice, $stopLoss, $takeProfit),
+        });
 
-      const $avgRR = this.round($allTrades.reduce((a, b) => a + b, 0) / $allTrades.length, 2);
-      const $winrate = this.round(($winTrades.length / ($loseTrades.length + $winTrades.length)) * 100, 2) + '%';
-      firebase.database().ref('/results').remove();
-      firebase.database().ref('/results').push({
-        winTrades: $winTrades.length,
-        loseTrades: $loseTrades.length,
-        totalTrades: $winTrades.length + $loseTrades.length,
-        totalRR: this.round($loseTrades.reduce((a, b) => a + b, 0) + $winTrades.reduce((a, b) => a + b, 0), 2),
-        avgRR: $avgRR ? $avgRR : 0,
-        winrate: $winrate ? $winrate : 0
-      });
+      const $avgRR = this.round(
+        $allTrades.reduce((a, b) => a + b, 0) / $allTrades.length,
+        2
+      );
+      const $winrate =
+        this.round(
+          ($winTrades.length / ($loseTrades.length + $winTrades.length)) * 100,
+          2
+        ) + "%";
+      firebase.database().ref("/results").remove();
+      firebase
+        .database()
+        .ref("/results")
+        .push({
+          winTrades: $winTrades.length,
+          loseTrades: $loseTrades.length,
+          totalTrades: $winTrades.length + $loseTrades.length,
+          totalRR: this.round(
+            $loseTrades.reduce((a, b) => a + b, 0) +
+              $winTrades.reduce((a, b) => a + b, 0),
+            2
+          ),
+          avgRR: $avgRR ? $avgRR : 0,
+          winrate: $winrate ? $winrate : 0,
+        });
     } catch (error) {
       throw error;
     }
   }
-
 
   /**
    * Envoie une notification à Télégram.
@@ -294,16 +332,21 @@ export class UtilsService {
     try {
       telegramBotObject.sendMessage(chatId, msg);
     } catch (err) {
-      console.log('Something went wrong when trying to send a Telegram notification', err);
+      console.log(
+        "Something went wrong when trying to send a Telegram notification",
+        err
+      );
     }
   }
-
 
   /**
    * Supprime le token si existant et refresh la connection toute les 10h.
    */
   async login(ig: any) {
-    const tokenContent = await promisify(fs.readFile)('node_modules\\node-ig-api\\tokens.json', 'UTF-8');
+    const tokenContent = await promisify(fs.readFile)(
+      "node_modules\\node-ig-api\\tokens.json",
+      "UTF-8"
+    );
     const tokenJson = JSON.parse(tokenContent);
 
     if (tokenJson && tokenJson.tokens_exp > 0) {
@@ -314,11 +357,8 @@ export class UtilsService {
     await ig.login(true);
     setInterval(async function () {
       await ig.login(true);
-    }, 1000 * 60 * 60 * 10)
-
+    }, 1000 * 60 * 60 * 10);
   }
 }
 
 export default new UtilsService();
-
-

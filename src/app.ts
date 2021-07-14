@@ -16,8 +16,12 @@ let allData = [];
 let winTrades = [];
 let loseTrades = [];
 let allTrades = [];
+let ohlc = [];
+let timeProcessed = [];
 let telegramBot: any;
 const toDataBase = false;
+const WebSocket = require("ws");
+let socket = new WebSocket("wss://btc.data.hxro.io/live");
 
 class App extends CandleAbstract {
   constructor(
@@ -30,64 +34,33 @@ class App extends CandleAbstract {
     /* firebase.initializeApp(config.firebaseConfig);
     telegramBot = new TelegramBot(config.token, { polling: false }); */
 
-    /* allData = this.utils.dataArrayBuilder(items, allData, timeFrameArray);
-    this.init(); */
+    allData = this.utils.dataArrayBuilder(allData);
+    this.init();
   }
 
   /**
    * Point d'entrée.
+   * 
+        to_sym: 'USD',
+        from_sym: 'BTC',
+        ts: 1626295563357,
+        price: 32798.59,
+        volume: 0
    */
   async init(): Promise<void> {
     try {
-      /* await this.utils.login(ig);
-      ig.connectToLightstreamer();
-      ig.subscribeToLightstreamer("MERGE", items, ["BID", "OFFER"], 3);
-      ig.lsEmitter.on("update", (streamData: any) => {
+      socket.onmessage = function (event) {
+        let message = event.data;
+        //console.log(JSON.parse(message));
         const minuteTimestamp = Math.trunc(Date.now() / 60000);
-        const ticker = this.utils.getTicker(streamData[1]);
-        const price = this.utils.round(
-          parseFloat(streamData[2]) +
-            (parseFloat(streamData[3]) - parseFloat(streamData[2])) / 2,
-          5
-        );
 
-        for (const timeFrame of timeFrameArray) {
-          const tickerTf = ticker + "_" + timeFrame + "MINUTE";
-
-          if (
-            minuteTimestamp % timeFrame === 0 &&
-            !allData[tickerTf].timeProcessed.find(
-              (element: any) => element === minuteTimestamp
-            )
-          ) {
-            allData[tickerTf].timeProcessed.push(minuteTimestamp);
-
-            if (allData[tickerTf].ohlc_tmp) {
-              const lastCandle = allData[tickerTf].ohlc_tmp;
-              lastCandle.close = price;
-              allData[tickerTf].ohlc.push(lastCandle);
-              this.findSetupOnClosedCandles(tickerTf);
-            }
-            allData[tickerTf].ohlc_tmp = {
-              date: streamData[0],
-              open: price,
-              high: price,
-              low: price,
-            };
-          }
-
-          if (allData[tickerTf].ohlc_tmp) {
-            let currentCandlestick = allData[tickerTf].ohlc_tmp;
-            if (price > currentCandlestick.high) {
-              currentCandlestick.high = price;
-            }
-            if (price < currentCandlestick.low) {
-              currentCandlestick.low = price;
-            }
-          }
-          this.entryExit(price, tickerTf, streamData[0]);
+        if (
+          !timeProcessed.find((element: any) => element === minuteTimestamp)
+        ) {
+          timeProcessed.push(minuteTimestamp);
+          console.log("timeProcessed", timeProcessed);
         }
-      }); */
+      };
     } catch (error) {
       console.error(error);
     }

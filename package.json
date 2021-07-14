@@ -24,6 +24,8 @@
     "ig-api": "^0.15.0",
     "node-ig-api": "^2.0.4",
     "node-telegram-bot-api": "^0.50.0",
+    "websocket": "^1.0.34",
+    "ws": "^7.5.3",
     "yarn": "^1.22.10"
   },
   "devDependencies": {
