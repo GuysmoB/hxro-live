@@ -1,0 +1,33 @@
+{
+  "name": "hxro-live",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/app.js",
+  "scripts": {
+    "start": "tsc && node dist/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "",
+    "url": ""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": ""
+  },
+  "homepage": "",
+  "dependencies": {
+    "file-system": "^2.2.2",
+    "firebase": "^8.0.2",
+    "ig-api": "^0.15.0",
+    "node-ig-api": "^2.0.4",
+    "node-telegram-bot-api": "^0.50.0",
+    "yarn": "^1.22.10"
+  },
+  "devDependencies": {
+    "@types/node": "^14.14.0",
+    "typescript": "^3.3.3"
+  }
+}
