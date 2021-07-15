@@ -16,12 +16,15 @@ let allData: any;
 let winTrades = [];
 let loseTrades = [];
 let allTrades = [];
+let countdown: any;
 let ohlc: any;
 let timeProcessed: any;
 let telegramBot: any;
 const toDataBase = false;
 const WebSocket = require("ws");
 let socket = new WebSocket("wss://btc.data.hxro.io/live");
+const events = require("events");
+const lsEmitter = new events.EventEmitter();
 
 class App extends CandleAbstract {
   constructor(
@@ -37,6 +40,12 @@ class App extends CandleAbstract {
     allData = [];
     timeProcessed = [];
     ohlc = [];
+    socket.onmessage = function (event: any) {
+      lsEmitter.emit("update", JSON.parse(event.data));
+    };
+    setInterval(() => {
+      countdown = this.utils.getSecondFromDate();
+    }, 1000);
     this.init();
   }
 
@@ -52,25 +61,30 @@ class App extends CandleAbstract {
   init() {
     try {
       let ohlc_tmp: any;
-      console.log("minute", this.utils.getMinuteFromDate(2));
-      socket.onmessage = function (event: any) {
-        const stream = JSON.parse(event.data);
-
-        //const minuteTimestamp = Math.trunc(Date.now() / (60000 / 60));
-        const minuteTimestamp = Math.trunc(Date.now() / 60000);
-        console.log("minute2", this.utils.getMinuteFromDate(2));
-        if (minuteTimestamp % 1 === 0 && !timeProcessed.find((element: any) => element === minuteTimestamp)) {
+      lsEmitter.on("update", (stream: any) => {
+        const minuteTimestamp = Math.trunc(Date.now() / (60000 / 60));
+        //const minuteTimestamp = Math.trunc(Date.now() / 60000);
+        console.log("second", countdown);
+        if (
+          minuteTimestamp % 1 === 0 &&
+          !timeProcessed.find((element: any) => element === minuteTimestamp)
+        ) {
           timeProcessed.push(minuteTimestamp);
-
+          //console.log("timeProcessed", timeProcessed);
 
           if (ohlc_tmp) {
             ohlc_tmp.close = stream.price;
             ohlc.push(ohlc_tmp);
             //console.log("ohlc tmp", ohlc_tmp);
-            console.log("ohlc pushed", ohlc);
+            //console.log("ohlc pushed", ohlc);
             //this.findSetupOnClosedCandles("");
           }
-          ohlc_tmp = { date: stream.ts, open: stream.price, high: stream.price, low: stream.price };
+          ohlc_tmp = {
+            date: stream.ts,
+            open: stream.price,
+            high: stream.price,
+            low: stream.price,
+          };
           //console.log("ohlc tmp", ohlc_tmp);
         }
 
@@ -83,13 +97,11 @@ class App extends CandleAbstract {
             currentCandlestick.low = stream.price;
           }
         }
-      };
+      });
     } catch (error) {
       console.error(error);
     }
   }
-
-
 
   /**
    * Execution de la stratégie principale.
@@ -240,7 +252,7 @@ class App extends CandleAbstract {
           "Total R:R",
           this.utils.round(
             loseTrades.reduce((a, b) => a + b, 0) +
-            winTrades.reduce((a, b) => a + b, 0),
+              winTrades.reduce((a, b) => a + b, 0),
             2
           )
         );
@@ -253,16 +265,22 @@ class App extends CandleAbstract {
         );
         console.log(
           "Winrate " +
-          this.utils.round(
-            (winTrades.length / (loseTrades.length + winTrades.length)) * 100,
-            2
-          ) +
-          "%"
+            this.utils.round(
+              (winTrades.length / (loseTrades.length + winTrades.length)) * 100,
+              2
+            ) +
+            "%"
         );
       }
     } catch (error) {
       throw error;
     }
+  }
+
+  getMinuteFromDate(ts: any): any {
+    let date = new Date(ts);
+    const second = "0" + date.getSeconds();
+    return second.substr(-2);
   }
 
   /**

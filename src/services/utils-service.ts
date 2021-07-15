@@ -4,7 +4,7 @@ import fs from "fs";
 import { error } from "console";
 
 export class UtilsService {
-  constructor() { }
+  constructor() {}
 
   /**
    * Parse et push les donnees CSV.
@@ -31,32 +31,6 @@ export class UtilsService {
   }
 
   /**
-   * Parse les données depuis IG.
-   */
-  async parseData(ticker: string, resolution: string, max: number) {
-    const result = [];
-    const res = await ig.get(
-      "/prices/CS.D." +
-      ticker +
-      ".CFD.IP?resolution=" +
-      resolution +
-      "&max=" +
-      max +
-      "&pageSize=0",
-      3
-    );
-    for (let i = 0; i < res.body.prices.length; i++) {
-      result.push({
-        open: res.body.prices[i].openPrice.bid,
-        close: res.body.prices[i].closePrice.bid,
-        high: res.body.prices[i].highPrice.bid,
-        low: res.body.prices[i].lowPrice.bid,
-      });
-    }
-    return result;
-  }
-
-  /**
    * Permet de retourner le R:R
    */
   getRiskReward(
@@ -66,7 +40,7 @@ export class UtilsService {
   ): number {
     const result = this.round(
       Math.abs(closedPrice - entryPrice) /
-      Math.abs(entryPrice - initialStopLoss),
+        Math.abs(entryPrice - initialStopLoss),
       2
     );
     if (isNaN(result)) {
@@ -130,7 +104,7 @@ export class UtilsService {
       if (j === 0) {
         const _close = this.round(
           (source[j].open + source[j].high + source[j].low + source[j].close) /
-          4,
+            4,
           5
         );
         const _open = this.round((source[j].open + source[j].close) / 2, 5);
@@ -185,7 +159,6 @@ export class UtilsService {
     }
   }
 
-
   /**
    * Retourne le ticker timeframe.
    */
@@ -238,12 +211,12 @@ export class UtilsService {
   }
 
   /**
- * Retourne la date avec décalage horaire.
- */
-  getMinuteFromDate(ts: any): any {
-    let date = new Date(ts);
-    const minutes = "0" + date.getMinutes();
-    return minutes.substr(-2);
+   * Retourne la date avec décalage horaire.
+   */
+  getSecondFromDate(): any {
+    let date = new Date();
+    const second = "0" + date.getSeconds();
+    return second.substr(-2);
   }
 
   /**
@@ -316,7 +289,7 @@ export class UtilsService {
           totalTrades: $winTrades.length + $loseTrades.length,
           totalRR: this.round(
             $loseTrades.reduce((a, b) => a + b, 0) +
-            $winTrades.reduce((a, b) => a + b, 0),
+              $winTrades.reduce((a, b) => a + b, 0),
             2
           ),
           avgRR: $avgRR ? $avgRR : 0,
