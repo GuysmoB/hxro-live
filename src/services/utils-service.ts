@@ -1,11 +1,10 @@
 import { promisify } from "util";
 import firebase from "firebase";
 import fs from "fs";
-import ig from "node-ig-api";
 import { error } from "console";
 
 export class UtilsService {
-  constructor() {}
+  constructor() { }
 
   /**
    * Parse et push les donnees CSV.
@@ -38,12 +37,12 @@ export class UtilsService {
     const result = [];
     const res = await ig.get(
       "/prices/CS.D." +
-        ticker +
-        ".CFD.IP?resolution=" +
-        resolution +
-        "&max=" +
-        max +
-        "&pageSize=0",
+      ticker +
+      ".CFD.IP?resolution=" +
+      resolution +
+      "&max=" +
+      max +
+      "&pageSize=0",
       3
     );
     for (let i = 0; i < res.body.prices.length; i++) {
@@ -67,7 +66,7 @@ export class UtilsService {
   ): number {
     const result = this.round(
       Math.abs(closedPrice - entryPrice) /
-        Math.abs(entryPrice - initialStopLoss),
+      Math.abs(entryPrice - initialStopLoss),
       2
     );
     if (isNaN(result)) {
@@ -131,7 +130,7 @@ export class UtilsService {
       if (j === 0) {
         const _close = this.round(
           (source[j].open + source[j].high + source[j].low + source[j].close) /
-            4,
+          4,
           5
         );
         const _open = this.round((source[j].open + source[j].close) / 2, 5);
@@ -186,12 +185,6 @@ export class UtilsService {
     }
   }
 
-  dataArrayBuilder(allData: any) {
-    allData = [];
-    allData.ohlc = [];
-    allData.timeProcessed = [];
-    return allData;
-  }
 
   /**
    * Retourne le ticker timeframe.
@@ -242,6 +235,15 @@ export class UtilsService {
       ":" +
       second.substr(-2)
     );
+  }
+
+  /**
+ * Retourne la date avec décalage horaire.
+ */
+  getMinuteFromDate(ts: any): any {
+    let date = new Date(ts);
+    const minutes = "0" + date.getMinutes();
+    return minutes.substr(-2);
   }
 
   /**
@@ -314,7 +316,7 @@ export class UtilsService {
           totalTrades: $winTrades.length + $loseTrades.length,
           totalRR: this.round(
             $loseTrades.reduce((a, b) => a + b, 0) +
-              $winTrades.reduce((a, b) => a + b, 0),
+            $winTrades.reduce((a, b) => a + b, 0),
             2
           ),
           avgRR: $avgRR ? $avgRR : 0,

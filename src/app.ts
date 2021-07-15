@@ -12,12 +12,12 @@ import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 
 // VARIABLES
-let allData = [];
+let allData: any;
 let winTrades = [];
 let loseTrades = [];
 let allTrades = [];
-let ohlc = [];
-let timeProcessed = [];
+let ohlc: any;
+let timeProcessed: any;
 let telegramBot: any;
 const toDataBase = false;
 const WebSocket = require("ws");
@@ -34,7 +34,9 @@ class App extends CandleAbstract {
     /* firebase.initializeApp(config.firebaseConfig);
     telegramBot = new TelegramBot(config.token, { polling: false }); */
 
-    allData = this.utils.dataArrayBuilder(allData);
+    allData = [];
+    timeProcessed = [];
+    ohlc = [];
     this.init();
   }
 
@@ -47,24 +49,47 @@ class App extends CandleAbstract {
         price: 32798.59,
         volume: 0
    */
-  async init(): Promise<void> {
+  init() {
     try {
-      socket.onmessage = function (event) {
-        let message = event.data;
-        //console.log(JSON.parse(message));
-        const minuteTimestamp = Math.trunc(Date.now() / 60000);
+      let ohlc_tmp: any;
+      console.log("minute", this.utils.getMinuteFromDate(2));
+      socket.onmessage = function (event: any) {
+        const stream = JSON.parse(event.data);
 
-        if (
-          !timeProcessed.find((element: any) => element === minuteTimestamp)
-        ) {
+        //const minuteTimestamp = Math.trunc(Date.now() / (60000 / 60));
+        const minuteTimestamp = Math.trunc(Date.now() / 60000);
+        console.log("minute2", this.utils.getMinuteFromDate(2));
+        if (minuteTimestamp % 1 === 0 && !timeProcessed.find((element: any) => element === minuteTimestamp)) {
           timeProcessed.push(minuteTimestamp);
-          console.log("timeProcessed", timeProcessed);
+
+
+          if (ohlc_tmp) {
+            ohlc_tmp.close = stream.price;
+            ohlc.push(ohlc_tmp);
+            //console.log("ohlc tmp", ohlc_tmp);
+            console.log("ohlc pushed", ohlc);
+            //this.findSetupOnClosedCandles("");
+          }
+          ohlc_tmp = { date: stream.ts, open: stream.price, high: stream.price, low: stream.price };
+          //console.log("ohlc tmp", ohlc_tmp);
+        }
+
+        if (ohlc_tmp) {
+          let currentCandlestick = ohlc_tmp;
+          if (stream.price > currentCandlestick.high) {
+            currentCandlestick.high = stream.price;
+          }
+          if (stream.price < currentCandlestick.low) {
+            currentCandlestick.low = stream.price;
+          }
         }
       };
     } catch (error) {
       console.error(error);
     }
   }
+
+
 
   /**
    * Execution de la stratégie principale.
@@ -215,7 +240,7 @@ class App extends CandleAbstract {
           "Total R:R",
           this.utils.round(
             loseTrades.reduce((a, b) => a + b, 0) +
-              winTrades.reduce((a, b) => a + b, 0),
+            winTrades.reduce((a, b) => a + b, 0),
             2
           )
         );
@@ -228,11 +253,11 @@ class App extends CandleAbstract {
         );
         console.log(
           "Winrate " +
-            this.utils.round(
-              (winTrades.length / (loseTrades.length + winTrades.length)) * 100,
-              2
-            ) +
-            "%"
+          this.utils.round(
+            (winTrades.length / (loseTrades.length + winTrades.length)) * 100,
+            2
+          ) +
+          "%"
         );
       }
     } catch (error) {
