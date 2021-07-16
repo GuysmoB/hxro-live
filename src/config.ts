@@ -1,7 +1,7 @@
 export class Config {
 
-    token = '1394125992:AAGNZ30GK2HePdaX3rmsJIRcosXpn2neU-k';
-    chatId = '-451985401';
+    token = '1909550597:AAGd1H7WU7ZNrW8zhZFy0iQs7RGr6jPl448';
+    chatId = '-566798860';
     firebaseConfig = {
         apiKey: "AIzaSyAn1Jn7J-vumyC-XL1LY7AJEq7R_oqUGdc",
         authDomain: "real-time-trading-bot.firebaseapp.com",

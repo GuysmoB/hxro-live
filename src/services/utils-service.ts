@@ -6,28 +6,12 @@ import { error } from "console";
 export class UtilsService {
   constructor() { }
 
+
   /**
-   * Parse et push les donnees CSV.
+   * Prend en compte les fees de Hxro
    */
-  async getDataFromFile(): Promise<any> {
-    const result = [];
-    const content = await promisify(fs.readFile)(
-      "src\\assets\\EURUSD60.csv",
-      "UTF-8"
-    );
-    const csvToRowArray = content.split("\r\n");
-    for (let index = 1; index < csvToRowArray.length - 1; index++) {
-      const element = csvToRowArray[index].split("\t"); // d, o, h, l, c, v
-      result.push({
-        date: element[0],
-        open: parseFloat(element[1]),
-        high: parseFloat(element[2]),
-        low: parseFloat(element[3]),
-        close: parseFloat(element[4]),
-        volume: parseFloat(element[5]),
-      });
-    }
-    return result;
+  addFees(gain: number) {
+    return gain - (gain * 0.03)
   }
 
   getDataFromApi(): Promise<any> {
@@ -43,24 +27,12 @@ export class UtilsService {
     });
   }
 
+
   /**
-   * Permet de retourner le R:R
-   */
-  getRiskReward(
-    entryPrice: number,
-    initialStopLoss: number,
-    closedPrice: number
-  ): number {
-    const result = this.round(
-      Math.abs(closedPrice - entryPrice) /
-      Math.abs(entryPrice - initialStopLoss),
-      2
-    );
-    if (isNaN(result)) {
-      return -1;
-    } else {
-      return result;
-    }
+ * Fait la somme des nombres d'un tableau
+ */
+  arraySum(array: any) {
+    return array.reduce((a, b) => a + b, 0);
   }
 
   /**
@@ -155,39 +127,6 @@ export class UtilsService {
     return result;
   }
 
-  /**
-   * Retourne une moving average en fonction de la période.
-   */
-  sma(data: any, index: number, periode: number): number {
-    const result = [];
-    const dataStart = index - periode;
-
-    if (dataStart > 0) {
-      for (let i = dataStart; i < index; i++) {
-        result.push(data[i].close);
-      }
-      return this.round(result.reduce((a, b) => a + b, 0) / result.length, 5);
-    } else {
-      return 0;
-    }
-  }
-
-  /**
-   * Retourne le ticker timeframe.
-   */
-  getTickerTimeframe(string: string) {
-    const str = string.split(".");
-    const tf = str[4].split(":");
-    return this.getTicker(string) + "_" + tf[1];
-  }
-
-  /**
-   * Retourne le ticker.
-   */
-  getTicker(string: string) {
-    const str = string.split(".");
-    return str[2];
-  }
 
   /**
    * Permet d'arrêter le processus.
@@ -223,66 +162,13 @@ export class UtilsService {
     );
   }
 
-  /**
-   * Retourne la date avec décalage horaire.
-   */
-  getSecondFromDate(): any {
-    let date = new Date();
-    const second = "0" + date.getSeconds();
-    return second.substr(-2);
-  }
+
 
   /**
    * Insert chaque trade dans Firebase.
    */
-  insertTrade(
-    tickerTfData: any,
-    $tickerTf: string,
-    $winTrades: any,
-    $loseTrades: any,
-    $allTrades: any
-  ) {
+  insertTrade($winTrades: any, $loseTrades: any, $allTrades: any) {
     try {
-      let $direction: string;
-      let $entryTime: any;
-      let $entryPrice: number;
-      let $stopLoss: number;
-      let $takeProfit: number;
-      let time: number;
-
-      if (tickerTfData.inLong) {
-        $direction = "Long";
-        $entryTime = tickerTfData.entryTime_Long;
-        $entryPrice = tickerTfData.entryPrice_Long;
-        $stopLoss = tickerTfData.initialStopLoss_Long;
-        $takeProfit = tickerTfData.takeProfit_Long;
-        time = tickerTfData.snapshot_Long.time;
-      } else if (tickerTfData.inShort) {
-        $direction = "Short";
-        $entryTime = tickerTfData.entryTime_Short;
-        $entryPrice = tickerTfData.entryPrice_Short;
-        $stopLoss = tickerTfData.initialStopLoss_Short;
-        $takeProfit = tickerTfData.takeProfit_Short;
-        time = tickerTfData.snapshot_Short.time;
-      } else {
-        throw new error();
-      }
-
-      firebase
-        .database()
-        .ref("/trade")
-        .push({
-          direction: $direction,
-          tickerTf: $tickerTf,
-          setupTime: tickerTfData.ohlc[time].date,
-          entryTime: $entryTime,
-          exitTime: this.getDate(),
-          entryPrice: $entryPrice,
-          stopLoss: $stopLoss,
-          takeProfit: $takeProfit,
-          rr: this.getRiskReward($entryPrice, $stopLoss, $takeProfit),
-        });
-
       const $avgRR = this.round(
         $allTrades.reduce((a, b) => a + b, 0) / $allTrades.length,
         2
@@ -325,27 +211,6 @@ export class UtilsService {
         err
       );
     }
-  }
-
-  /**
-   * Supprime le token si existant et refresh la connection toute les 10h.
-   */
-  async login(ig: any) {
-    const tokenContent = await promisify(fs.readFile)(
-      "node_modules\\node-ig-api\\tokens.json",
-      "UTF-8"
-    );
-    const tokenJson = JSON.parse(tokenContent);
-
-    if (tokenJson && tokenJson.tokens_exp > 0) {
-      //await ig.logout();
-      //console.log('logout');
-    }
-
-    await ig.login(true);
-    setInterval(async function () {
-      await ig.login(true);
-    }, 1000 * 60 * 60 * 10);
   }
 }
 
