@@ -199,19 +199,7 @@ export class UtilsService {
     }
   }
 
-  /**
-   * Envoie une notification à Télégram.
-   */
-  sendTelegramMsg(telegramBotObject: any, chatId: string, msg: string) {
-    try {
-      telegramBotObject.sendMessage(chatId, msg);
-    } catch (err) {
-      console.log(
-        "Something went wrong when trying to send a Telegram notification",
-        err
-      );
-    }
-  }
+
 }
 
 export default new UtilsService();

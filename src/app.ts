@@ -120,7 +120,7 @@ class App extends CandleAbstract {
       setTimeout(function () {
         this.getStreamData();
       }, 1000);
-      this.utils.sendTelegramMsg(telegramBot, this.config.chatId, + 'Socket is closed');
+      this.sendTelegramMsg(telegramBot, this.config.chatId, 'Socket is closed');
     };
 
     ws.onerror = function (err) {
@@ -162,7 +162,17 @@ class App extends CandleAbstract {
         }
 
         if (toDataBase) {
-          this.utils.insertTrade(winTrades, loseTrades, allTrades);
+          /* console.log('-------------');
+          console.log('Trades : Gagnes / Perdus / Total', this.winTrades.length, this.loseTrades.length, this.winTrades.length + this.loseTrades.length);
+          console.log('Total R:R', this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2));
+          console.log('Avg R:R', this.utils.round(this.allTrades.reduce((a, b) => a + b, 0) / this.allTrades.length, 2));
+          console.log('Winrate ' + this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%'); */
+          this.sendTelegramMsg(telegramBot, this.config.chatId, '---------------------------');
+          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Total trades : ' + (winTrades.length + loseTrades.length));
+          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Total R:R : ' + (this.utils.round(loseTrades.reduce((a, b) => a + b, 0) + winTrades.reduce((a, b) => a + b, 0), 2)));
+          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Avg R:R : ' + (this.utils.round(allTrades.reduce((a, b) => a + b, 0) / allTrades.length, 2)));
+          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Winrate : ' + (this.utils.round((winTrades.length / (loseTrades.length + winTrades.length)) * 100, 2) + '%'));
+          //this.utils.insertTrade(winTrades, loseTrades, allTrades);
         }
       }
 
@@ -207,6 +217,19 @@ class App extends CandleAbstract {
     }
   }
 
+  /**
+   * Envoie une notification à Télégram.
+   */
+  sendTelegramMsg(telegramBotObject: any, chatId: string, msg: string) {
+    try {
+      telegramBotObject.sendMessage(chatId, msg);
+    } catch (err) {
+      console.log(
+        "Something went wrong when trying to send a Telegram notification",
+        err
+      );
+    }
+  }
 
   stopConditions(i: number): boolean {
     return (
