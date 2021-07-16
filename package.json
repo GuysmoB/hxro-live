@@ -19,6 +19,7 @@
   },
   "homepage": "",
   "dependencies": {
+    "axios": "^0.21.1",
     "file-system": "^2.2.2",
     "firebase": "^8.0.2",
     "ig-api": "^0.15.0",

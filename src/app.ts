@@ -12,14 +12,16 @@ import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 
 // VARIABLES
-let allData: any;
 let winTrades = [];
 let loseTrades = [];
 let allTrades = [];
 let countdown: any;
+let ohlc_tmp: any;
 let ohlc: any;
 let timeProcessed: any;
+let streamData: any;
 let telegramBot: any;
+let earlyPush = false;
 const toDataBase = false;
 const WebSocket = require("ws");
 let socket = new WebSocket("wss://btc.data.hxro.io/live");
@@ -37,17 +39,31 @@ class App extends CandleAbstract {
     /* firebase.initializeApp(config.firebaseConfig);
     telegramBot = new TelegramBot(config.token, { polling: false }); */
 
-    allData = [];
     timeProcessed = [];
     ohlc = [];
     socket.onmessage = function (event: any) {
       lsEmitter.emit("update", JSON.parse(event.data));
     };
+
+
     setInterval(() => {
       countdown = this.utils.getSecondFromDate();
+      console.log("second", countdown);
+
+      if (countdown == 55) {
+        if (ohlc_tmp) {
+          ohlc_tmp.close = streamData.price;
+          ohlc.push(ohlc_tmp);
+          earlyPush = true;
+          console.log("ohlc 55 pushed", ohlc.length);
+          //this.findSetupOnClosedCandles("");
+        }
+      }
     }, 1000);
+
     this.init();
   }
+
 
   /**
    * Point d'entrée.
@@ -58,29 +74,35 @@ class App extends CandleAbstract {
         price: 32798.59,
         volume: 0
    */
-  init() {
+  async init() {
     try {
-      let ohlc_tmp: any;
+      const allData = await this.utils.getDataFromApi();
+      ohlc = allData.data.slice();
+
       lsEmitter.on("update", (stream: any) => {
+        streamData = stream;
         const minuteTimestamp = Math.trunc(Date.now() / (60000 / 60));
         //const minuteTimestamp = Math.trunc(Date.now() / 60000);
-        console.log("second", countdown);
-        if (
-          minuteTimestamp % 1 === 0 &&
-          !timeProcessed.find((element: any) => element === minuteTimestamp)
-        ) {
+
+        if (minuteTimestamp % 1 === 0 && !timeProcessed.find((element: any) => element === minuteTimestamp)) {
           timeProcessed.push(minuteTimestamp);
           //console.log("timeProcessed", timeProcessed);
+
+          if (earlyPush) {
+            ohlc.pop();
+            earlyPush = false;
+            console.log("ohlc 55 pop", ohlc.length);
+          }
 
           if (ohlc_tmp) {
             ohlc_tmp.close = stream.price;
             ohlc.push(ohlc_tmp);
             //console.log("ohlc tmp", ohlc_tmp);
-            //console.log("ohlc pushed", ohlc);
-            //this.findSetupOnClosedCandles("");
+            console.log("ohlc pushed", ohlc[ohlc.length - 1]);
           }
+
           ohlc_tmp = {
-            date: stream.ts,
+            time: stream.ts,
             open: stream.price,
             high: stream.price,
             low: stream.price,
@@ -104,353 +126,50 @@ class App extends CandleAbstract {
   }
 
   /**
-   * Execution de la stratégie principale.
-   */
-  entryExit(price: number, tickerTf: string, date: Date) {
-    let rr: number;
-    const rrTarget = 2;
-    const data = allData[tickerTf].ohlc;
-    const inLong = this.getDirection_Long(tickerTf);
-    const inShort = this.getDirection_Short(tickerTf);
-
-    try {
-      if (inLong) {
-        rr = this.stratService.getFixedTakeProfitAndStopLoss(
-          "LONG",
-          this.getTickerTfData(tickerTf),
-          price
-        );
-        this.updateResults("LONG", rr, tickerTf);
-      } else {
-        const res = this.stratService.trigger_EngulfingRetested_Long(
-          this.getSnapshot_Long(tickerTf),
-          price
-        );
-        if (res) {
-          const date = this.utils.getDate();
-          this.setDirection_Long(tickerTf, true);
-          this.setSnapshotCanceled_Long(tickerTf, true);
-          this.setEntryTime_Long(tickerTf, date);
-          this.setEntryPrice_Long(
-            tickerTf,
-            this.utils.round(res.entryPrice, 5)
-          );
-          this.setStopLoss_Long(tickerTf, this.utils.round(res.stopLoss, 5));
-          this.setTakeProfit_Long(
-            tickerTf,
-            this.utils.round(
-              res.entryPrice + (res.entryPrice - res.stopLoss) * rrTarget,
-              5
-            )
-          );
-
-          if (this.logEnable) {
-            console.log("--------");
-            console.log(
-              "Bullish Engulfing",
-              data[this.getSnapshot_Long(tickerTf).time].date
-            );
-            console.log("Long", tickerTf, date);
-            console.log("entryPrice", this.getEntryPrice_Long(tickerTf));
-            console.log("stopLoss", this.getStopLoss_Long(tickerTf));
-            console.log("takeProfit", this.getTakeProfit_Long(tickerTf));
-          }
-        }
-      }
-
-      if (inShort) {
-        rr = this.stratService.getFixedTakeProfitAndStopLoss(
-          "SHORT",
-          this.getTickerTfData(tickerTf),
-          price
-        );
-        this.updateResults("SHORT", rr, tickerTf);
-      } else {
-        const res = this.stratService.trigger_EngulfingRetested_Short(
-          this.getSnapshot_Short(tickerTf),
-          price
-        );
-        if (res) {
-          const date = this.utils.getDate();
-          this.setDirection_Short(tickerTf, true);
-          this.setSnapshotCanceled_Short(tickerTf, true);
-          this.setEntryTime_Short(tickerTf, date);
-          this.setEntryPrice_Short(
-            tickerTf,
-            this.utils.round(res.entryPrice, 5)
-          );
-          this.setStopLoss_Short(tickerTf, this.utils.round(res.stopLoss, 5));
-          this.setTakeProfit_Short(
-            tickerTf,
-            this.utils.round(
-              res.entryPrice + (res.entryPrice - res.stopLoss) * rrTarget,
-              5
-            )
-          );
-
-          if (this.logEnable) {
-            console.log("--------");
-            console.log(
-              "Bearish Engulfing",
-              data[this.getSnapshot_Short(tickerTf).time].date
-            );
-            console.log("Short", tickerTf, date);
-            console.log("entryPrice", this.getEntryPrice_Short(tickerTf));
-            console.log("stopLoss", this.getStopLoss_Short(tickerTf));
-            console.log("takeProfit", this.getTakeProfit_Short(tickerTf));
-          }
-        }
-      }
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Update trades's state, global R:R and log.
-   */
-  updateResults(direction: string, rr: number, tickerTf: any) {
-    try {
-      if (rr !== undefined) {
-        allTrades.push(rr);
-        if (rr >= 0) {
-          winTrades.push(rr);
-        } else if (rr < 0) {
-          loseTrades.push(rr);
-        }
-
-        if (toDataBase) {
-          this.utils.insertTrade(
-            this.getTickerTfData(tickerTf),
-            tickerTf,
-            winTrades,
-            loseTrades,
-            allTrades
-          );
-        }
-
-        if (direction === "LONG") {
-          this.setDirection_Long(tickerTf, false);
-        } else if (direction === "SHORT") {
-          this.setDirection_Short(tickerTf, false);
-        } else {
-          console.error("Long or short ?");
-        }
-
-        console.log("-------------------------");
-        console.log("---- UPDATED RESULTS ----");
-        console.log("-------------------------");
-        console.log("Last R:R", rr);
-        console.log(direction, tickerTf, this.utils.getDate());
-        console.log(
-          "Trades : Gagnes / Perdus / Total",
-          winTrades.length,
-          loseTrades.length,
-          winTrades.length + loseTrades.length
-        );
-        console.log(
-          "Total R:R",
-          this.utils.round(
-            loseTrades.reduce((a, b) => a + b, 0) +
-              winTrades.reduce((a, b) => a + b, 0),
-            2
-          )
-        );
-        console.log(
-          "Avg R:R",
-          this.utils.round(
-            allTrades.reduce((a, b) => a + b, 0) / allTrades.length,
-            2
-          )
-        );
-        console.log(
-          "Winrate " +
-            this.utils.round(
-              (winTrades.length / (loseTrades.length + winTrades.length)) * 100,
-              2
-            ) +
-            "%"
-        );
-      }
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  getMinuteFromDate(ts: any): any {
-    let date = new Date(ts);
-    const second = "0" + date.getSeconds();
-    return second.substr(-2);
-  }
-
-  /**
    * Recherche de setup sur les candles closes et les sauvegarde dans AllData
    */
-  findSetupOnClosedCandles(tickerTf: string) {
+  findSetupOnClosedCandles() {
     try {
-      const data = allData[tickerTf].ohlc;
-      const atr = this.indicators.atr(data, 10);
-      const inLong = this.getDirection_Long(tickerTf);
-      const inShort = this.getDirection_Short(tickerTf);
 
-      if (!inLong) {
-        const isLongSetup = this.stratService.strategy_EngulfingRetested_Long(
-          data,
-          atr
-        );
-        if (isLongSetup) {
-          this.setSnapshot_Long(tickerTf, isLongSetup);
-        }
-      }
-      if (!inShort) {
-        const isShortSetup = this.stratService.strategy_EngulfingRetested_Short(
-          data,
-          atr
-        );
-        if (isShortSetup) {
-          this.setSnapshot_Short(tickerTf, isShortSetup);
-        }
-      }
-
-      const isLiquidityShort = this.stratService.checkLiquidity_Short(
-        data,
-        atr
-      );
-      const isLiquidityLong = this.stratService.checkLiquidity_Long(data, atr);
-      if (isLiquidityLong) {
-        //console.log(tickerTf + ' | ' + this.utils.getDate() + ' | Bullish liquidity found !');
-        this.setLiquidity_Long(tickerTf, isLiquidityLong);
-      }
-      if (isLiquidityShort) {
-        //console.log(tickerTf + ' | ' + this.utils.getDate() + ' | Bearish liquidity found !');
-        this.setLiquidity_Short(tickerTf, isLiquidityShort);
-      }
-
-      const isLiquidityShortSetup =
-        this.stratService.strategy_LiquidityBreakout_Short(
-          data,
-          this.getLiquidity_Short(tickerTf)
-        );
-      const isLiquidityLongSetup =
-        this.stratService.strategy_LiquidityBreakout_Long(
-          data,
-          this.getLiquidity_Long(tickerTf)
-        );
-      if (isLiquidityLongSetup) {
-        this.setLiquidity_Long(tickerTf, undefined);
-        this.utils.sendTelegramMsg(
-          telegramBot,
-          this.config.chatId,
-          tickerTf + " | Bullish liquidity setup"
-        );
-      }
-      if (isLiquidityShortSetup) {
-        this.setLiquidity_Short(tickerTf, undefined);
-        this.utils.sendTelegramMsg(
-          telegramBot,
-          this.config.chatId,
-          tickerTf + " | Bearish liquidity setup"
-        );
-      }
     } catch (error) {
       console.error(error);
       this.utils.stopProcess();
     }
   }
 
-  /**
-   * GETTER / SETTER
-   */
-  getLiquidity_Long(tickerTf: any) {
-    return allData[tickerTf].liquidity_Long;
-  }
-  getTickerTfData(tickerTf: any) {
-    return allData[tickerTf];
-  }
-  getDirection_Long(tickerTf: any) {
-    return allData[tickerTf].inLong;
-  }
-  getEntryPrice_Long(tickerTf: any) {
-    return allData[tickerTf].entryPrice_Long;
-  }
-  getStopLoss_Long(tickerTf: any) {
-    return allData[tickerTf].initialStopLoss_Long;
-  }
-  getTakeProfit_Long(tickerTf: any) {
-    return allData[tickerTf].takeProfit_Long;
-  }
-  getSnapshot_Long(tickerTf: any) {
-    return allData[tickerTf].snapshot_Long;
+
+
+  main() {
+    (async () => {
+      setInterval(() => {
+        if (ohlc_tmp) {
+          ohlc_tmp.close = streamData.price;
+          ohlc.push(ohlc_tmp);
+          //console.log("ohlc tmp", ohlc_tmp);
+          console.log("ohlc pushed", ohlc);
+        }
+
+        ohlc_tmp = {
+          date: streamData.ts,
+          open: streamData.price,
+          high: streamData.price,
+          low: streamData.price,
+        };
+
+        if (ohlc_tmp) {
+          let currentCandlestick = ohlc_tmp;
+          if (streamData.price > currentCandlestick.high) {
+            currentCandlestick.high = streamData.price;
+          }
+          if (streamData.price < currentCandlestick.low) {
+            currentCandlestick.low = streamData.price;
+          }
+        }
+      }, 1000);
+
+    })();
   }
 
-  setLiquidity_Long(tickerTf: any, value: any) {
-    allData[tickerTf].liquidity_Long = value;
-  }
-  setEntryTime_Long(tickerTf: any, value: any) {
-    allData[tickerTf].entryTime_Long = value;
-  }
-  setSnapshot_Long(tickerTf: any, value: any) {
-    allData[tickerTf].snapshot_Long = value;
-  }
-  setSnapshotCanceled_Long(tickerTf: any, value: boolean) {
-    allData[tickerTf].snapshot_Long.canceled = value;
-  }
-  setDirection_Long(tickerTf: any, value: boolean) {
-    allData[tickerTf].inLong = value;
-  }
-  setEntryPrice_Long(tickerTf: any, value: number) {
-    allData[tickerTf].entryPrice_Long = value;
-  }
-  setStopLoss_Long(tickerTf: any, value: number) {
-    allData[tickerTf].initialStopLoss_Long = value;
-  }
-  setTakeProfit_Long(tickerTf: any, value: number) {
-    allData[tickerTf].takeProfit_Long = value;
-  }
-
-  getLiquidity_Short(tickerTf: any) {
-    return allData[tickerTf].liquidity_Short;
-  }
-  getDirection_Short(tickerTf: any) {
-    return allData[tickerTf].inShort;
-  }
-  getEntryPrice_Short(tickerTf: any) {
-    return allData[tickerTf].entryPrice_Short;
-  }
-  getStopLoss_Short(tickerTf: any) {
-    return allData[tickerTf].initialStopLoss_Short;
-  }
-  getTakeProfit_Short(tickerTf: any) {
-    return allData[tickerTf].takeProfit_Short;
-  }
-  getSnapshot_Short(tickerTf: any) {
-    return allData[tickerTf].snapshot_Short;
-  }
-
-  setLiquidity_Short(tickerTf: any, value: any) {
-    allData[tickerTf].liquidity_Short = value;
-  }
-  setEntryTime_Short(tickerTf: any, value: any) {
-    allData[tickerTf].entryTime_Short = value;
-  }
-  setSnapshot_Short(tickerTf: any, value: any) {
-    allData[tickerTf].snapshot_Short = value;
-  }
-  setSnapshotCanceled_Short(tickerTf: any, value: boolean) {
-    allData[tickerTf].snapshot_Short.canceled = value;
-  }
-  setDirection_Short(tickerTf: any, value: boolean) {
-    allData[tickerTf].inShort = value;
-  }
-  setEntryPrice_Short(tickerTf: any, value: number) {
-    allData[tickerTf].entryPrice_Short = value;
-  }
-  setStopLoss_Short(tickerTf: any, value: number) {
-    allData[tickerTf].initialStopLoss_Short = value;
-  }
-  setTakeProfit_Short(tickerTf: any, value: number) {
-    allData[tickerTf].takeProfit_Short = value;
-  }
 }
 
 const utilsService = new UtilsService();

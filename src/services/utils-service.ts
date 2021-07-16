@@ -4,7 +4,7 @@ import fs from "fs";
 import { error } from "console";
 
 export class UtilsService {
-  constructor() {}
+  constructor() { }
 
   /**
    * Parse et push les donnees CSV.
@@ -30,6 +30,19 @@ export class UtilsService {
     return result;
   }
 
+  getDataFromApi(): Promise<any> {
+    return new Promise<any>(async (resolve, reject) => {
+      const axios = require('axios').default;
+      const res = await axios.get("https://btc.history.hxro.io/1m");
+      if (res) {
+        resolve(res.data);
+      } else {
+        console.log(error);
+        reject(error);
+      }
+    });
+  }
+
   /**
    * Permet de retourner le R:R
    */
@@ -40,7 +53,7 @@ export class UtilsService {
   ): number {
     const result = this.round(
       Math.abs(closedPrice - entryPrice) /
-        Math.abs(entryPrice - initialStopLoss),
+      Math.abs(entryPrice - initialStopLoss),
       2
     );
     if (isNaN(result)) {
@@ -104,7 +117,7 @@ export class UtilsService {
       if (j === 0) {
         const _close = this.round(
           (source[j].open + source[j].high + source[j].low + source[j].close) /
-            4,
+          4,
           5
         );
         const _open = this.round((source[j].open + source[j].close) / 2, 5);
@@ -289,7 +302,7 @@ export class UtilsService {
           totalTrades: $winTrades.length + $loseTrades.length,
           totalRR: this.round(
             $loseTrades.reduce((a, b) => a + b, 0) +
-              $winTrades.reduce((a, b) => a + b, 0),
+            $winTrades.reduce((a, b) => a + b, 0),
             2
           ),
           avgRR: $avgRR ? $avgRR : 0,
