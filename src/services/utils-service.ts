@@ -147,19 +147,7 @@ export class UtilsService {
     const hours = "0" + date.getHours();
     const minutes = "0" + date.getMinutes();
     const second = "0" + date.getSeconds();
-    return (
-      day.substr(-2) +
-      "/" +
-      month.substr(-2) +
-      "/" +
-      year +
-      " " +
-      hours.substr(-2) +
-      ":" +
-      minutes.substr(-2) +
-      ":" +
-      second.substr(-2)
-    );
+    return (day.substr(-2) + "/" + month.substr(-2) + "/" + year + " " + hours.substr(-2) + ":" + minutes.substr(-2) + ":" + second.substr(-2));
   }
 
 
@@ -167,38 +155,43 @@ export class UtilsService {
   /**
    * Insert chaque trade dans Firebase.
    */
-  insertTrade($winTrades: any, $loseTrades: any, $allTrades: any) {
+  async updateFirebaseResults($rr: any) {
     try {
-      const $avgRR = this.round(
-        $allTrades.reduce((a, b) => a + b, 0) / $allTrades.length,
-        2
-      );
-      const $winrate =
-        this.round(
-          ($winTrades.length / ($loseTrades.length + $winTrades.length)) * 100,
-          2
-        ) + "%";
+      const res = await this.getFirebaseResults();
+      const $winTrades = ($rr > 0) ? res.winTrades + 1 : res.winTrades;
+      const $loseTrades = ($rr < 0) ? res.loseTrades + 1 : res.loseTrades;
+      const $winrate = this.round(($winTrades / ($loseTrades + $winTrades)) * 100, 2);
       firebase.database().ref("/results").remove();
-      firebase
-        .database()
-        .ref("/results")
-        .push({
-          winTrades: $winTrades.length,
-          loseTrades: $loseTrades.length,
-          totalTrades: $winTrades.length + $loseTrades.length,
-          totalRR: this.round(
-            $loseTrades.reduce((a, b) => a + b, 0) +
-            $winTrades.reduce((a, b) => a + b, 0),
-            2
-          ),
-          avgRR: $avgRR ? $avgRR : 0,
-          winrate: $winrate ? $winrate : 0,
-        });
+      firebase.database().ref("/results").push({
+        winTrades: $winTrades,
+        loseTrades: $loseTrades,
+        totalTrades: res.totalTrades + 1,
+        totalRR: res.totalRR + $rr,
+        'winrate%': $winrate ? $winrate : 0,
+      });
     } catch (error) {
       throw error;
     }
   }
 
+
+  /**
+   * Récupère les resultats depuis Firebase.
+   */
+  async getFirebaseResults() {
+    try {
+      let snapshot = await firebase.database().ref('/results').once('value');
+      if (snapshot.exists()) {
+        const id = Object.keys(snapshot.val())[0];
+        return snapshot.child(id).val();
+      } else {
+        throw new Error('Error from Firebase GET');
+      }
+    } catch (error) {
+      console.error(error);
+    }
+    return '';
+  }
 
 }
 

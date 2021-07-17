@@ -10,39 +10,32 @@ import { UtilsService } from "./services/utils-service";
 import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
-
-// VARIABLES
-let winTrades = [];
-let loseTrades = [];
-let allTrades = [];
-let inLong = false;
-let inShort = false;
-let looseInc = 0;
-let looseInc2 = 0;
-let countdown: any;
-let ohlc_tmp: any;
-let ohlc: any;
-let haOhlc: any;
-let streamData: any;
-let telegramBot: any;
-let earlyPush = false;
-const toDataBase = true;
 const WebSocket = require("ws");
 
 class App extends CandleAbstract {
-  constructor(
-    private utils: UtilsService,
-    private stratService: StrategiesService,
-    private config: Config,
-    private indicators: IndicatorsService
-  ) {
+
+  winTrades = [];
+  loseTrades = [];
+  inLong = false;
+  inShort = false;
+  looseInc = 0;
+  looseInc2 = 0;
+  countdown: any;
+  ohlc_tmp: any;
+  ohlc = [];
+  haOhlc = [];
+  streamData: any;
+  telegramBot: any;
+  earlyPush = false;
+  // toDataBase = true;
+  url = 'wss://btc.data.hxro.io/live';
+
+  constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config, private indicators: IndicatorsService) {
     super();
     firebase.initializeApp(config.firebaseConfig);
-    telegramBot = new TelegramBot(config.token, { polling: false });
+    this.telegramBot = new TelegramBot(config.token, { polling: false });
 
-    ohlc = [];
-    haOhlc = [];
-    this.getStreamData("wss://btc.data.hxro.io/live");
+    this.getStreamData(this.url);
     this.main();
   }
 
@@ -53,40 +46,36 @@ class App extends CandleAbstract {
    */
   async main() {
     const allData = await this.utils.getDataFromApi();
-    ohlc = allData.data.slice();
+    this.ohlc = allData.data.slice();
 
     setInterval(() => {
-      countdown = new Date().getSeconds();
-      //console.log("second", countdown);
-
-      if (countdown == 55) {
-        if (ohlc_tmp) {
-          ohlc_tmp.close = streamData.price;
-          ohlc.push(ohlc_tmp);
-          earlyPush = true;
-          //console.log("ohlc 55 pushed", ohlc.length);
-          this.findSetupOnClosedCandles();
+      this.countdown = new Date().getSeconds();
+      if (this.countdown == 55) {
+        if (this.ohlc_tmp) {
+          this.ohlc_tmp.close = this.streamData.price;
+          this.ohlc.push(this.ohlc_tmp);
+          this.earlyPush = true;
+          //this.findSetupOnClosedCandles();     // real money
         }
       }
 
-      if (countdown == 0) {
-        if (earlyPush) {
-          ohlc.pop();
-          earlyPush = false;
-          //console.log("ohlc 55 pop", ohlc.length);
+      if (this.countdown == 0) {
+        if (this.earlyPush) {
+          this.ohlc.pop();
+          this.earlyPush = false;
         }
 
-        if (ohlc_tmp) {
-          ohlc_tmp.close = streamData.price;
-          ohlc.push(ohlc_tmp);
-          //console.log("ohlc pushed", ohlc[ohlc.length - 1]);
+        if (this.ohlc_tmp) {
+          this.ohlc_tmp.close = this.streamData.price;
+          this.ohlc.push(this.ohlc_tmp);
+          this.findSetupOnClosedCandles(); // fake money
         }
 
-        ohlc_tmp = {
-          time: streamData.ts,
-          open: streamData.price,
-          high: streamData.price,
-          low: streamData.price,
+        this.ohlc_tmp = {
+          time: this.streamData.ts,
+          open: this.streamData.price,
+          high: this.streamData.price,
+          low: this.streamData.price,
         };
       }
     }, 1000);
@@ -98,19 +87,21 @@ class App extends CandleAbstract {
    */
   getStreamData(url: string) {
     let ws = new WebSocket(url);
+    const _this = this;
+
     ws.onopen = function () {
-      console.log("Socket is connected");
+      console.log("Socket is connected. Listenning data ...");
     }
 
     ws.onmessage = function (event: any) {
-      streamData = JSON.parse(event.data);
+      _this.streamData = JSON.parse(event.data);
 
-      if (ohlc_tmp) {
-        if (streamData.price > ohlc_tmp.high) {
-          ohlc_tmp.high = streamData.price;
+      if (_this.ohlc_tmp) {
+        if (_this.streamData.price > _this.ohlc_tmp.high) {
+          _this.ohlc_tmp.high = _this.streamData.price;
         }
-        if (streamData.price < ohlc_tmp.low) {
-          ohlc_tmp.low = streamData.price;
+        if (_this.streamData.price < _this.ohlc_tmp.low) {
+          _this.ohlc_tmp.low = _this.streamData.price;
         }
       }
     };
@@ -118,12 +109,12 @@ class App extends CandleAbstract {
     ws.onclose = function (e) {
       console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
       setTimeout(function () {
-        this.getStreamData();
+        _this.getStreamData(_this.url);
       }, 1000);
-      this.sendTelegramMsg(telegramBot, this.config.chatId, 'Socket is closed');
+      _this.sendTelegramMsg(_this.telegramBot, _this.config.chatId, 'Reconnecting ...');
     };
 
-    ws.onerror = function (err) {
+    ws.onerror = function (err: any) {
       console.error('Socket encountered error: ', err.message, 'Closing socket');
       ws.close();
     };
@@ -134,82 +125,68 @@ class App extends CandleAbstract {
    */
   findSetupOnClosedCandles() {
     try {
-      const i = ohlc.length - 1;
-      haOhlc = this.utils.setHeikenAshiData(ohlc);
-      const rsiValues = this.indicators.rsi(ohlc, 14);
+      const i = this.ohlc.length - 1;
+      this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
+      const rsiValues = this.indicators.rsi(this.ohlc, 14);
 
-      if (inLong) {
-        if (this.isUp(ohlc, i, 0)) {
-          allTrades.push(this.utils.addFees(0.91));
-          winTrades.push(this.utils.addFees(0.91));
-          console.log('Resultat ++', this.utils.round(this.utils.arraySum(allTrades), 2), this.utils.getDate());
-          looseInc = 0;
+      if (this.inLong) {
+        if (this.isUp(this.ohlc, i, 0)) {
+          this.winTrades.push(this.utils.addFees(0.91));
+          this.utils.updateFirebaseResults(this.utils.addFees(0.91));
+          console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.looseInc = 0;
         } else {
-          allTrades.push(-1);
-          loseTrades.push(-1);
-          console.log('Resultat --', this.utils.round(this.utils.arraySum(allTrades), 2), this.utils.getDate());
-          looseInc++;
+          this.loseTrades.push(-1);
+          this.utils.updateFirebaseResults(-1);
+          console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.looseInc++;
         }
 
         if (this.stopConditions(i)) {
-          inLong = false;
-          looseInc = 0;
+          this.inLong = false;
+          this.looseInc = 0;
           console.log('Exit bull loose streak', this.utils.getDate());
-        } else if (haOhlc[i].close < haOhlc[i].open) {
-          inLong = false;
-          looseInc = 0;
+        } else if (this.haOhlc[i].close < this.haOhlc[i].open) {
+          this.inLong = false;
+          this.looseInc = 0;
           console.log('Exit bull setup', this.utils.getDate());
         }
-
-        if (toDataBase) {
-          this.sendTelegramMsg(telegramBot, this.config.chatId, '---------------------------');
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Total trades : ' + (winTrades.length + loseTrades.length));
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Total R:R : ' + (this.utils.round(loseTrades.reduce((a, b) => a + b, 0) + winTrades.reduce((a, b) => a + b, 0), 2)));
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Avg R:R : ' + (this.utils.round(allTrades.reduce((a, b) => a + b, 0) / allTrades.length, 2)));
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Winrate : ' + (this.utils.round((winTrades.length / (loseTrades.length + winTrades.length)) * 100, 2) + '%'));
-          //this.utils.insertTrade(winTrades, loseTrades, allTrades);
-        }
+        this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
       }
 
 
-      if (inShort) {
-        if (!this.isUp(ohlc, i, 0)) {
-          allTrades.push(this.utils.addFees(0.91));
-          winTrades.push(this.utils.addFees(0.91));
-          console.log('Resultat ++', this.utils.round(this.utils.arraySum(allTrades), 2), this.utils.getDate());
-          looseInc2 = 0;
+
+      if (this.inShort) {
+        if (!this.isUp(this.ohlc, i, 0)) {
+          this.winTrades.push(this.utils.addFees(0.91));
+          this.utils.updateFirebaseResults(this.utils.addFees(0.91));
+          console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.looseInc2 = 0;
         } else {
-          allTrades.push(-1);
-          loseTrades.push(-1);
-          console.log('Resultat --', this.utils.round(this.utils.arraySum(allTrades), 2), this.utils.getDate());
-          looseInc2++;
+          this.loseTrades.push(-1);
+          this.utils.updateFirebaseResults(-1);
+          console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.looseInc2++;
         }
 
         if (this.stopConditions(i)) {
-          inShort = false;
-          looseInc2 = 0;
+          this.inShort = false;
+          this.looseInc2 = 0;
           console.log('Exit short loose streak', this.utils.getDate());
-        } else if (haOhlc[i].close > haOhlc[i].open) {
-          inShort = false;
-          looseInc2 = 0;
+        } else if (this.haOhlc[i].close > this.haOhlc[i].open) {
+          this.inShort = false;
+          this.looseInc2 = 0;
           console.log('Exit short setup', this.utils.getDate());
         }
-
-        if (toDataBase) {
-          this.sendTelegramMsg(telegramBot, this.config.chatId, '---------------------------');
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Total trades : ' + (winTrades.length + loseTrades.length));
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Total R:R : ' + (this.utils.round(loseTrades.reduce((a, b) => a + b, 0) + winTrades.reduce((a, b) => a + b, 0), 2)));
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Avg R:R : ' + (this.utils.round(allTrades.reduce((a, b) => a + b, 0) / allTrades.length, 2)));
-          this.sendTelegramMsg(telegramBot, this.config.chatId, 'Winrate : ' + (this.utils.round((winTrades.length / (loseTrades.length + winTrades.length)) * 100, 2) + '%'));
-          //this.utils.insertTrade(winTrades, loseTrades, allTrades);
-        }
+        this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
       }
 
-      const lookback = 6;
-      if (this.stratService.bullStrategy(haOhlc, i, lookback, rsiValues)) {
-        inLong = true;
-      } else if (this.stratService.bearStrategy(haOhlc, i, lookback, rsiValues)) {
-        inShort = true;
+
+      const lookback = 1;
+      if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
+        this.inLong = true;
+      } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {
+        this.inShort = true;
       }
     } catch (error) {
       console.error(error);
@@ -231,11 +208,17 @@ class App extends CandleAbstract {
     }
   }
 
+  formatTelegramMsg() {
+    return 'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
+      'Total R:R : ' + (this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2)) + '\n' +
+      'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
+  }
+
   stopConditions(i: number): boolean {
     return (
-      looseInc == 5 ||
-      looseInc2 == 5 ||
-      Math.abs(this.high(ohlc, i, 0) - this.low(ohlc, i, 0)) > 80
+      this.looseInc == 5 ||
+      this.looseInc2 == 5 ||
+      Math.abs(this.high(this.ohlc, i, 0) - this.low(this.ohlc, i, 0)) > 80
     ) ? true : false;
   }
 
