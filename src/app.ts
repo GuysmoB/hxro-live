@@ -10,7 +10,7 @@ import { UtilsService } from "./services/utils-service";
 import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
-const WebSocket = require("ws");
+import WebSocket from "ws";
 
 class App extends CandleAbstract {
 
@@ -26,8 +26,8 @@ class App extends CandleAbstract {
   haOhlc = [];
   streamData: any;
   telegramBot: any;
-  earlyPush = false;
-  // toDataBase = true;
+  lastSecond: any;
+  toDataBase = true;
   url = 'wss://btc.data.hxro.io/live';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config, private indicators: IndicatorsService) {
@@ -47,30 +47,23 @@ class App extends CandleAbstract {
   async main() {
     const allData = await this.utils.getDataFromApi();
     this.ohlc = allData.data.slice();
+    const _this = this;
 
-    setInterval(() => {
+    setInterval(async () => {
       this.countdown = new Date().getSeconds();
-      if (this.countdown == 55) {
+      if (this.countdown == 55 && _this.lastSecond !== 55) {
         if (this.ohlc_tmp) {
           this.ohlc_tmp.close = this.streamData.price;
           this.ohlc.push(this.ohlc_tmp);
-          this.earlyPush = true;
           //this.findSetupOnClosedCandles();     // real money
         }
       }
 
-      if (this.countdown == 0) {
-        if (this.earlyPush) {
-          this.ohlc.pop();
-          this.earlyPush = false;
-        }
+      if (this.countdown == 0 && _this.lastSecond !== 0) {
+        const allData = await _this.utils.getDataFromApi();
+        _this.ohlc = allData.data.slice();
 
-        if (this.ohlc_tmp) {
-          this.ohlc_tmp.close = this.streamData.price;
-          this.ohlc.push(this.ohlc_tmp);
-          this.findSetupOnClosedCandles(); // fake money
-        }
-
+        this.findSetupOnClosedCandles(); // fake money
         this.ohlc_tmp = {
           time: this.streamData.ts,
           open: this.streamData.price,
@@ -78,7 +71,8 @@ class App extends CandleAbstract {
           low: this.streamData.price,
         };
       }
-    }, 1000);
+      _this.lastSecond = this.countdown;
+    }, 500);
   }
 
 
@@ -132,12 +126,12 @@ class App extends CandleAbstract {
       if (this.inLong) {
         if (this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.utils.addFees(0.91));
-          this.utils.updateFirebaseResults(this.utils.addFees(0.91));
+          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
           console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
           this.looseInc = 0;
         } else {
           this.loseTrades.push(-1);
-          this.utils.updateFirebaseResults(-1);
+          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
           console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
           this.looseInc++;
         }
@@ -159,12 +153,12 @@ class App extends CandleAbstract {
       if (this.inShort) {
         if (!this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.utils.addFees(0.91));
-          this.utils.updateFirebaseResults(this.utils.addFees(0.91));
+          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
           console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
           this.looseInc2 = 0;
         } else {
           this.loseTrades.push(-1);
-          this.utils.updateFirebaseResults(-1);
+          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
           console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
           this.looseInc2++;
         }
@@ -182,7 +176,7 @@ class App extends CandleAbstract {
       }
 
 
-      const lookback = 1;
+      const lookback = 6;
       if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
         this.inLong = true;
       } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {

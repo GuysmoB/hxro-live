@@ -18,7 +18,7 @@ export class StrategiesService extends CandleAbstract {
       }
     }
 
-    if (cond && haOhlc[i].close > haOhlc[i].open /* && rsiValues[i] < 40 */) {
+    if (cond && haOhlc[i].close > haOhlc[i].open && rsiValues[i] < 40) {
       console.log('Entry bull setup', this.utils.getDate());
       return true;
     } else {
@@ -37,7 +37,7 @@ export class StrategiesService extends CandleAbstract {
       }
     }
 
-    if (cond && haOhlc[i].close < haOhlc[i].open /* && rsiValues[i] > 60 */) {
+    if (cond && haOhlc[i].close < haOhlc[i].open && rsiValues[i] > 60) {
       console.log('Entry bear setup', this.utils.getDate());
       return true;
     } else {
