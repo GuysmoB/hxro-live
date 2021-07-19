@@ -26,8 +26,9 @@ class App extends CandleAbstract {
   haOhlc = [];
   streamData: any;
   telegramBot: any;
-  lastSecond: any;
-  toDataBase = true;
+  toDataBase = false;
+  isCountDown0 = false;
+  isCountDown55 = false;
   url = 'wss://btc.data.hxro.io/live';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config, private indicators: IndicatorsService) {
@@ -45,13 +46,18 @@ class App extends CandleAbstract {
    * Gère la création des candles et de la logique principale..
    */
   async main() {
-    const allData = await this.utils.getDataFromApi();
-    this.ohlc = allData.data.slice();
     const _this = this;
 
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
-      if (this.countdown == 55 && _this.lastSecond !== 55) {
+
+      if (this.countdown == 10) {
+        (this.isCountDown0) ? this.isCountDown0 = false : '';
+        (this.isCountDown55) ? this.isCountDown55 = false : '';
+      }
+
+      if (this.countdown == 55 && !this.isCountDown55) {
+        this.isCountDown55 = true;
         if (this.ohlc_tmp) {
           this.ohlc_tmp.close = this.streamData.price;
           this.ohlc.push(this.ohlc_tmp);
@@ -59,9 +65,10 @@ class App extends CandleAbstract {
         }
       }
 
-      if (this.countdown == 0 && _this.lastSecond !== 0) {
+      if (this.countdown == 0 && !this.isCountDown0) {
+        this.isCountDown0 = true;
         const allData = await _this.utils.getDataFromApi();
-        _this.ohlc = allData.data.slice();
+        this.ohlc = allData.data.slice();
 
         this.findSetupOnClosedCandles(); // fake money
         this.ohlc_tmp = {
@@ -71,7 +78,6 @@ class App extends CandleAbstract {
           low: this.streamData.price,
         };
       }
-      _this.lastSecond = this.countdown;
     }, 500);
   }
 
@@ -122,6 +128,10 @@ class App extends CandleAbstract {
       const i = this.ohlc.length - 1;
       this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
       const rsiValues = this.indicators.rsi(this.ohlc, 14);
+
+      if (this.inLong && this.inShort) {
+        this.sendTelegramMsg(this.telegramBot, this.config.chatId, '### Long and Short ###');
+      }
 
       if (this.inLong) {
         if (this.isUp(this.ohlc, i, 0)) {
