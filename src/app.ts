@@ -19,6 +19,7 @@ class App extends CandleAbstract {
   loseTrades = [];
   inLong = false;
   inShort = false;
+  inPosition = false;
   looseInc = 0;
   looseInc2 = 0;
   countdown: any;
@@ -29,8 +30,6 @@ class App extends CandleAbstract {
   telegramBot: any;
   toDataBase = false;
   isCountDownSnipe = false;
-  isCountDown0 = false;
-  isCountDown55 = false;
   token = 'b15346f6544b4d289139b2feba668b20';
   url = 'wss://btc.data.hxro.io/live';
 
@@ -50,36 +49,39 @@ class App extends CandleAbstract {
    * Gère la création des candles et de la logique principale..
    */
   async main() {
-    //const seriesId = await this.apiService.getSeriesId(this.token);
-    //this.apiService.getContestId(this.token, seriesId);
-    //this.apiService.getContestsBySeriesId(seriesId);
-    //this.apiService.getRunningContestSeries();
-
     const _this = this;
 
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
-
-      if (this.countdown == 10) {
-        (this.isCountDown0) ? this.isCountDown0 = false : '';
-        (this.isCountDown55) ? this.isCountDown55 = false : '';
+      //console.log('COuntdown', this.countdown)
+      if (this.countdown == 5 || this.countdown == 20 || this.countdown == 35 || this.countdown == 50) {
+        (this.isCountDownSnipe) ? this.isCountDownSnipe = false : '';
+        //console.log('snipe bool', this.isCountDownSnipe)
       }
 
-      if (this.countdown == 55 && !this.isCountDown55) {
-        this.isCountDown55 = true;
+      if ((this.countdown == 0 || this.countdown == 15 || this.countdown == 30 || this.countdown == 45) && !this.isCountDownSnipe) {
+        this.isCountDownSnipe = true;
+        //console.log('snipe bool', this.isCountDownSnipe)
+
         if (this.ohlc_tmp) {
           this.ohlc_tmp.close = this.streamData.price;
           this.ohlc.push(this.ohlc_tmp);
-          //this.findSetupOnClosedCandles();     // real money
+          //console.log('pushed')
+
+          if (this.countdown == 45 && !this.inPosition) {
+            console.log('bullorBear');
+            this.bullOrBear();
+          }
+
+          if (this.countdown == 0 && (this.inLong || this.inShort) && !this.inPosition) {
+            console.log('InPosition');
+            this.inPosition = true;
+          } else if (this.countdown == 0 && this.inPosition) {
+            console.log('getResult');
+            this.getResult();
+          }
         }
-      }
 
-      if (this.countdown == 1 && !this.isCountDown0) {
-        this.isCountDown0 = true;
-        const allData = await _this.apiService.getDataFromApi();
-        this.ohlc = allData.data.slice();
-
-        this.findSetupOnClosedCandles(); // fake money
         this.ohlc_tmp = {
           time: this.streamData.ts,
           open: this.streamData.price,
@@ -87,9 +89,6 @@ class App extends CandleAbstract {
           low: this.streamData.price,
         };
       }
-
-
-
     }, 500);
   }
 
@@ -135,41 +134,26 @@ class App extends CandleAbstract {
   /**
    * Recherche de setup sur les candles closes et les sauvegarde dans AllData
    */
-  findSetupOnClosedCandles() {
+  async getResult() {
     try {
+      const allData = await this.apiService.getDataFromApi();
+      this.ohlc = allData.data.slice();
       const i = this.ohlc.length - 1;
-      this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
-      const rsiValues = this.indicators.rsi(this.ohlc, 14);
-
-      if (this.inLong && this.inShort) {
-        this.sendTelegramMsg(this.telegramBot, this.config.chatId, '### Long and Short ###');
-      }
 
       if (this.inLong) {
         if (this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.utils.addFees(0.91));
           this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
           console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
-          this.looseInc = 0;
         } else {
           this.loseTrades.push(-1);
           this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
           console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
-          this.looseInc++;
         }
 
-        if (this.stopConditions(i)) {
-          this.inLong = false;
-          this.looseInc = 0;
-          console.log('Exit bull loose streak', this.utils.getDate());
-        } else if (this.haOhlc[i].close < this.haOhlc[i].open) {
-          this.inLong = false;
-          this.looseInc = 0;
-          console.log('Exit bull setup', this.utils.getDate());
-        }
+        this.inLong = this.inPosition = false;
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
       }
-
 
 
       else if (this.inShort) {
@@ -177,36 +161,32 @@ class App extends CandleAbstract {
           this.winTrades.push(this.utils.addFees(0.91));
           this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
           console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
-          this.looseInc2 = 0;
         } else {
           this.loseTrades.push(-1);
           this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
           console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
-          this.looseInc2++;
         }
 
-        if (this.stopConditions(i)) {
-          this.inShort = false;
-          this.looseInc2 = 0;
-          console.log('Exit short loose streak', this.utils.getDate());
-        } else if (this.haOhlc[i].close > this.haOhlc[i].open) {
-          this.inShort = false;
-          this.looseInc2 = 0;
-          console.log('Exit short setup', this.utils.getDate());
-        }
+        this.inShort = this.inPosition = false;
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
-      }
-
-
-      const lookback = 1;
-      if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
-        this.inLong = true;
-      } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {
-        this.inShort = true;
       }
     } catch (error) {
       console.error(error);
       this.utils.stopProcess();
+    }
+  }
+
+
+  bullOrBear() {
+    const i = this.ohlc.length - 1;
+    this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
+    const rsiValues = this.indicators.rsi(this.ohlc, 14);
+
+    const lookback = 1;
+    if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
+      this.inLong = true;
+    } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {
+      this.inShort = true;
     }
   }
 
