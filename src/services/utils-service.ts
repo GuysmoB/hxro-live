@@ -14,18 +14,6 @@ export class UtilsService {
     return gain - (gain * 0.03)
   }
 
-  getDataFromApi(): Promise<any> {
-    return new Promise<any>(async (resolve, reject) => {
-      const axios = require('axios').default;
-      const res = await axios.get("https://btc.history.hxro.io/1m");
-      if (res) {
-        resolve(res.data);
-      } else {
-        console.log(error);
-        reject(error);
-      }
-    });
-  }
 
 
   /**

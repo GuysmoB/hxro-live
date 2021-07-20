@@ -1,3 +1,4 @@
+import { ApiService } from './services/api.service';
 // https://www.digitalocean.com/community/tutorials/setting-up-a-node-project-with-typescript
 // https://github.com/nikvdp/pidcrypt/issues/5#issuecomment-511383690
 // https://github.com/Microsoft/TypeScript/issues/17645#issuecomment-320556012
@@ -27,11 +28,14 @@ class App extends CandleAbstract {
   streamData: any;
   telegramBot: any;
   toDataBase = false;
+  isCountDownSnipe = false;
   isCountDown0 = false;
   isCountDown55 = false;
+  token = 'b15346f6544b4d289139b2feba668b20';
   url = 'wss://btc.data.hxro.io/live';
 
-  constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config, private indicators: IndicatorsService) {
+  constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
+    private indicators: IndicatorsService, private apiService: ApiService) {
     super();
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
@@ -46,6 +50,11 @@ class App extends CandleAbstract {
    * Gère la création des candles et de la logique principale..
    */
   async main() {
+    //const seriesId = await this.apiService.getSeriesId(this.token);
+    //this.apiService.getContestId(this.token, seriesId);
+    //this.apiService.getContestsBySeriesId(seriesId);
+    //this.apiService.getRunningContestSeries();
+
     const _this = this;
 
     setInterval(async () => {
@@ -65,9 +74,9 @@ class App extends CandleAbstract {
         }
       }
 
-      if (this.countdown == 0 && !this.isCountDown0) {
+      if (this.countdown == 1 && !this.isCountDown0) {
         this.isCountDown0 = true;
-        const allData = await _this.utils.getDataFromApi();
+        const allData = await _this.apiService.getDataFromApi();
         this.ohlc = allData.data.slice();
 
         this.findSetupOnClosedCandles(); // fake money
@@ -78,6 +87,9 @@ class App extends CandleAbstract {
           low: this.streamData.price,
         };
       }
+
+
+
     }, 500);
   }
 
@@ -160,7 +172,7 @@ class App extends CandleAbstract {
 
 
 
-      if (this.inShort) {
+      else if (this.inShort) {
         if (!this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.utils.addFees(0.91));
           this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
@@ -186,7 +198,7 @@ class App extends CandleAbstract {
       }
 
 
-      const lookback = 6;
+      const lookback = 1;
       if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
         this.inLong = true;
       } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {
@@ -235,5 +247,6 @@ new App(
   utilsService,
   new StrategiesService(utilsService),
   new Config(),
-  new IndicatorsService(utilsService)
+  new IndicatorsService(utilsService),
+  new ApiService()
 );
