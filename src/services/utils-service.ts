@@ -127,8 +127,8 @@ export class UtilsService {
   /**
    * Retourne la date avec décalage horaire.
    */
-  getDate(): any {
-    let date = new Date();
+  getDate(ts?: any): any {
+    let date = ts ? new Date(ts) : new Date();
     const year = date.getFullYear();
     const month = "0" + (date.getMonth() + 1);
     const day = "0" + date.getDate();

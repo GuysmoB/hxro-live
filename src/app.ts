@@ -19,6 +19,7 @@ class App extends CandleAbstract {
   loseTrades = [];
   inLong = false;
   inShort = false;
+  inPosition = false;
   looseInc = 0;
   looseInc2 = 0;
   countdown: any;
@@ -28,7 +29,6 @@ class App extends CandleAbstract {
   streamData: any;
   telegramBot: any;
   toDataBase = false;
-  isCountDownSnipe = false;
   isCountDown0 = false;
   isCountDown55 = false;
   token = 'b15346f6544b4d289139b2feba668b20';
@@ -59,7 +59,6 @@ class App extends CandleAbstract {
 
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
-
       if (this.countdown == 10) {
         (this.isCountDown0) ? this.isCountDown0 = false : '';
         (this.isCountDown55) ? this.isCountDown55 = false : '';
@@ -70,16 +69,16 @@ class App extends CandleAbstract {
         if (this.ohlc_tmp) {
           this.ohlc_tmp.close = this.streamData.price;
           this.ohlc.push(this.ohlc_tmp);
-          //this.findSetupOnClosedCandles();     // real money
+          this.bullOrBear();
         }
       }
 
-      if (this.countdown == 1 && !this.isCountDown0) {
+
+      if (this.countdown == 0 && !this.isCountDown0) {
         this.isCountDown0 = true;
         const allData = await _this.apiService.getDataFromApi();
         this.ohlc = allData.data.slice();
 
-        this.findSetupOnClosedCandles(); // fake money
         this.ohlc_tmp = {
           time: this.streamData.ts,
           open: this.streamData.price,
@@ -87,9 +86,6 @@ class App extends CandleAbstract {
           low: this.streamData.price,
         };
       }
-
-
-
     }, 500);
   }
 
@@ -133,19 +129,16 @@ class App extends CandleAbstract {
   }
 
   /**
-   * Recherche de setup sur les candles closes et les sauvegarde dans AllData
+   * Mets à jour les resultats de trade.
    */
-  findSetupOnClosedCandles() {
+  async getResult(direction: string) {
     try {
+      const allData = await this.apiService.getDataFromApi();
+      this.ohlc = allData.data.slice();
       const i = this.ohlc.length - 1;
       this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
-      const rsiValues = this.indicators.rsi(this.ohlc, 14);
 
-      if (this.inLong && this.inShort) {
-        this.sendTelegramMsg(this.telegramBot, this.config.chatId, '### Long and Short ###');
-      }
-
-      if (this.inLong) {
+      if (direction == 'long') {
         if (this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.utils.addFees(0.91));
           this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
@@ -157,22 +150,10 @@ class App extends CandleAbstract {
           console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
           this.looseInc++;
         }
-
-        if (this.stopConditions(i)) {
-          this.inLong = false;
-          this.looseInc = 0;
-          console.log('Exit bull loose streak', this.utils.getDate());
-        } else if (this.haOhlc[i].close < this.haOhlc[i].open) {
-          this.inLong = false;
-          this.looseInc = 0;
-          console.log('Exit bull setup', this.utils.getDate());
-        }
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
       }
 
-
-
-      else if (this.inShort) {
+      else if (direction == 'short') {
         if (!this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.utils.addFees(0.91));
           this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
@@ -184,30 +165,61 @@ class App extends CandleAbstract {
           console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
           this.looseInc2++;
         }
-
-        if (this.stopConditions(i)) {
-          this.inShort = false;
-          this.looseInc2 = 0;
-          console.log('Exit short loose streak', this.utils.getDate());
-        } else if (this.haOhlc[i].close > this.haOhlc[i].open) {
-          this.inShort = false;
-          this.looseInc2 = 0;
-          console.log('Exit short setup', this.utils.getDate());
-        }
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
-      }
-
-
-      const lookback = 1;
-      if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
-        this.inLong = true;
-      } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {
-        this.inShort = true;
       }
     } catch (error) {
       console.error(error);
       this.utils.stopProcess();
     }
+  }
+
+
+  /**
+   * Attend la prochaine candle pour update les résultats.
+   */
+  waitingNextCandle(direction: string) {
+    console.log("Waiting next candle |", direction, this.utils.getDate());
+    setTimeout(async () => {
+      this.getResult(direction);
+    }, 90000); // 1min 30s
+  }
+
+
+  /**
+   * Check for setup on closed candles
+   */
+  bullOrBear() {
+    const i = this.ohlc.length - 1;
+    this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
+    const rsiValues = this.indicators.rsi(this.ohlc, 14);
+
+    const lookback = 1;
+    if (!this.inLong && !this.inShort) {
+      if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
+        this.inLong = true;
+        this.waitingNextCandle('long');
+      } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {
+        this.inShort = true;
+        this.waitingNextCandle('short');
+      }
+    } else if (this.inLong) {
+      if (this.stopConditions(i)) {
+        this.inLong = false;
+        this.looseInc = 0;
+        console.log('Exit long setup', this.utils.getDate());
+      } else {
+        this.waitingNextCandle('long');
+      }
+    } else if (this.inShort) {
+      if (this.stopConditions(i)) {
+        this.inShort = false;
+        this.looseInc2 = 0;
+        console.log('Exit short setup', this.utils.getDate());
+      } else {
+        this.waitingNextCandle('short');
+      }
+    }
+
   }
 
   /**
@@ -232,6 +244,8 @@ class App extends CandleAbstract {
 
   stopConditions(i: number): boolean {
     return (
+      (this.inLong && this.haOhlc[i].bear) ||
+      (this.inShort && this.haOhlc[i].bull) ||
       this.looseInc == 5 ||
       this.looseInc2 == 5 ||
       Math.abs(this.high(this.ohlc, i, 0) - this.low(this.ohlc, i, 0)) > 80
