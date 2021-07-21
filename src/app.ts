@@ -22,6 +22,7 @@ class App extends CandleAbstract {
   inPosition = false;
   looseInc = 0;
   looseInc2 = 0;
+  payout: any;
   countdown: any;
   ohlc_tmp: any;
   ohlc = [];
@@ -50,13 +51,8 @@ class App extends CandleAbstract {
    * Gère la création des candles et de la logique principale..
    */
   async main() {
-    //const seriesId = await this.apiService.getSeriesId(this.token);
-    //this.apiService.getContestId(this.token, seriesId);
-    //this.apiService.getContestsBySeriesId(seriesId);
-    //this.apiService.getRunningContestSeries();
 
     const _this = this;
-
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
       if (this.countdown == 10) {
@@ -64,8 +60,11 @@ class App extends CandleAbstract {
         (this.isCountDown55) ? this.isCountDown55 = false : '';
       }
 
+
       if (this.countdown == 55 && !this.isCountDown55) {
+        this.payout = await _this.apiService.getActualPayout(this.token);
         this.isCountDown55 = true;
+
         if (this.ohlc_tmp) {
           this.ohlc_tmp.close = this.streamData.price;
           this.ohlc.push(this.ohlc_tmp);
@@ -140,14 +139,14 @@ class App extends CandleAbstract {
 
       if (direction == 'long') {
         if (this.isUp(this.ohlc, i, 0)) {
-          this.winTrades.push(this.utils.addFees(0.91));
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
-          console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.winTrades.push(this.payout.moonPayout);
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout) : '';
+          console.log('++ | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate());
           this.looseInc = 0;
         } else {
           this.loseTrades.push(-1);
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
-          console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          console.log('-- | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate());
           this.looseInc++;
         }
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
@@ -155,14 +154,14 @@ class App extends CandleAbstract {
 
       else if (direction == 'short') {
         if (!this.isUp(this.ohlc, i, 0)) {
-          this.winTrades.push(this.utils.addFees(0.91));
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
-          console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.winTrades.push(this.payout.rektPayout);
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout) : '';
+          console.log('++ | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate());
           this.looseInc2 = 0;
         } else {
           this.loseTrades.push(-1);
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
-          console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          console.log('-- | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate());
           this.looseInc2++;
         }
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
@@ -262,5 +261,5 @@ new App(
   new StrategiesService(utilsService),
   new Config(),
   new IndicatorsService(utilsService),
-  new ApiService()
+  new ApiService(utilsService)
 );
