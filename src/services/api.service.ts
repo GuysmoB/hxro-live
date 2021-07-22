@@ -122,8 +122,8 @@ export class ApiService {
 
 
   async getActualPayout(token: string) {
-    let $moonPayout: any;
-    let $rektPayout: any;
+    let $moonPayout = 1.91;
+    let $rektPayout = 1.91;
     const seriesId = await this.getSeriesId(token);
     const contests = await this.getContestsBySeriesId(seriesId);
 
@@ -131,6 +131,10 @@ export class ApiService {
       if (element.status === 'Live') {
         $moonPayout = (element.rektPool / element.moonPool) + 1;
         $rektPayout = (element.moonPool / element.rektPool) + 1;
+        if ($moonPayout == NaN || $rektPayout == NaN) {
+          console.log('SeriesId', seriesId);
+          console.log('Contests', contests, contests.length);
+        }
       }
     });
 
