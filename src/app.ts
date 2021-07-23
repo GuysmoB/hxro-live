@@ -11,7 +11,6 @@ import { UtilsService } from "./services/utils-service";
 import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
-import WebSocket from "ws";
 
 class App extends CandleAbstract {
 
@@ -23,6 +22,7 @@ class App extends CandleAbstract {
   looseInc2 = 0;
   payout: any;
   countdown: any;
+  result: any;
   ohlc = [];
   haOhlc = [];
   telegramBot: any;
@@ -33,6 +33,7 @@ class App extends CandleAbstract {
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
     private indicators: IndicatorsService, private apiService: ApiService) {
     super();
+    console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
     this.main();
@@ -61,7 +62,6 @@ class App extends CandleAbstract {
         this.bullOrBear();
       }
     }, 500);
-    console.log('Timer is started ...');
   }
 
 
@@ -79,11 +79,13 @@ class App extends CandleAbstract {
       if (direction == 'long') {
         if (this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.payout.moonPayout);
+          this.result = this.payout.moonPayout;
           this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout) : '';
           console.log('++ | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc = 0;
         } else {
           this.loseTrades.push(-1);
+          this.result = -1;
           this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
           console.log('-- | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc++;
@@ -94,11 +96,13 @@ class App extends CandleAbstract {
       else if (direction == 'short') {
         if (!this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.payout.rektPayout);
+          this.result = this.payout.rektPayout;
           this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout) : '';
           console.log('++ | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc2 = 0;
         } else {
           this.loseTrades.push(-1);
+          this.result = -1;
           this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
           console.log('-- | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc2++;
@@ -169,6 +173,7 @@ class App extends CandleAbstract {
 
   formatTelegramMsg() {
     return 'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
+      'Payout : ' + this.result + '\n' +
       'Total R:R : ' + (this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2)) + '\n' +
       'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
   }
