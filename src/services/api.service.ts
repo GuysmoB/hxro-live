@@ -1,7 +1,8 @@
+import { UtilsService } from './utils-service';
 
 export class ApiService {
 
-  constructor() { }
+  constructor(private utils: UtilsService) { }
 
   getDataFromApi(): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
@@ -20,7 +21,7 @@ export class ApiService {
     return new Promise<any>(async (resolve, reject) => {
       const contestPair = "BTC/USD";
       const contestDuration = "00:01:00";
-      const assetType = "HXRO";
+      const assetType = "USDT";
       const apiToken = token;
 
       const https = require('https');
@@ -103,28 +104,40 @@ export class ApiService {
     req.end();
   }
 
+
   getContestsBySeriesId(seriesId: string) {
-    const fetch = require('node-fetch');
+    return new Promise<any>(async (resolve, reject) => {
+      const fetch = require('node-fetch');
 
-    const url = 'http://api.hxro.io/hxroapi/api/Contests/by-series/' + seriesId;
-    const options = { method: 'GET', headers: { Accept: 'text/plain' } };
+      const url = 'http://api.hxro.io/hxroapi/api/Contests/by-series/' + seriesId;
+      const options = { method: 'GET', headers: { Accept: 'text/plain' } };
 
-    fetch(url, options)
-      .then(res => res.json())
-      .then(json => console.log(json))
-      .catch(err => console.error('error:' + err));
+      fetch(url, options)
+        .then(res => res.json())
+        .then(json => resolve(json))
+        .catch(err => reject('error:' + err));
+    });
   }
 
 
-  getRunningContestSeries() {
-    const fetch = require('node-fetch');
 
-    const url = 'http://api.hxro.io/hxroapi/api/ContestSeries/running';
-    const options = { method: 'GET', headers: { Accept: 'text/plain' } };
+  async getActualPayout(token: string) {
+    let $moonPayout: any;
+    let $rektPayout: any;
+    const seriesId = await this.getSeriesId(token);
+    const contests = await this.getContestsBySeriesId(seriesId);
 
-    fetch(url, options)
-      .then(res => res.json())
-      .then(json => console.log(json))
-      .catch(err => console.error('error:' + err));
+    contests.forEach(element => {
+      if (element.status === 'Live') {
+        $moonPayout = (element.rektPool / element.moonPool) + 1;
+        $rektPayout = (element.moonPool / element.rektPool) + 1;
+      }
+    });
+
+    return {
+      moonPayout: this.utils.round(this.utils.addFees($moonPayout) - 1, 2),
+      rektPayout: this.utils.round(this.utils.addFees($rektPayout) - 1, 2)
+    };
+
   }
 }

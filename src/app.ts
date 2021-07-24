@@ -20,8 +20,7 @@ class App extends CandleAbstract {
   inLong = false;
   inShort = false;
   inPosition = false;
-  looseInc = 0;
-  looseInc2 = 0;
+  payout: any;
   countdown: any;
   ohlc_tmp: any;
   ohlc = [];
@@ -53,32 +52,21 @@ class App extends CandleAbstract {
 
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
-      //console.log('COuntdown', this.countdown)
       if (this.countdown == 5 || this.countdown == 20 || this.countdown == 35 || this.countdown == 50) {
         (this.isCountDownSnipe) ? this.isCountDownSnipe = false : '';
-        //console.log('snipe bool', this.isCountDownSnipe)
       }
 
       if ((this.countdown == 0 || this.countdown == 15 || this.countdown == 30 || this.countdown == 45) && !this.isCountDownSnipe) {
         this.isCountDownSnipe = true;
-        //console.log('snipe bool', this.isCountDownSnipe)
 
         if (this.ohlc_tmp) {
           this.ohlc_tmp.close = this.streamData.price;
           this.ohlc.push(this.ohlc_tmp);
-          //console.log('pushed')
 
-          if (this.countdown == 45 && !this.inPosition) {
-            console.log('bullorBear');
+          if (this.countdown == 45) {
+            //console.log('boolOrBear');
+            this.payout = await _this.apiService.getActualPayout(this.token);
             this.bullOrBear();
-          }
-
-          if (this.countdown == 0 && (this.inLong || this.inShort) && !this.inPosition) {
-            console.log('InPosition');
-            this.inPosition = true;
-          } else if (this.countdown == 0 && this.inPosition) {
-            console.log('getResult');
-            this.getResult();
           }
         }
 
@@ -134,59 +122,75 @@ class App extends CandleAbstract {
   /**
    * Recherche de setup sur les candles closes et les sauvegarde dans AllData
    */
-  async getResult() {
+  async getResult(direction: string) {
     try {
       const allData = await this.apiService.getDataFromApi();
       this.ohlc = allData.data.slice();
-      const i = this.ohlc.length - 1;
+      const i = this.ohlc.length - 2; // candle avant la candle en cour
+      this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
 
-      if (this.inLong) {
+      if (direction == 'long') {
         if (this.isUp(this.ohlc, i, 0)) {
-          this.winTrades.push(this.utils.addFees(0.91));
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
-          console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.winTrades.push(this.payout.moonPayout);
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout) : '';
+          console.log('++ | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
         } else {
           this.loseTrades.push(-1);
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
-          console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          console.log('-- | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
         }
-
-        this.inLong = this.inPosition = false;
+        this.inLong = false;
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
       }
 
-
-      else if (this.inShort) {
+      else if (direction == 'short') {
         if (!this.isUp(this.ohlc, i, 0)) {
-          this.winTrades.push(this.utils.addFees(0.91));
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(0.91)) : '';
-          console.log('Resultat ++', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.winTrades.push(this.payout.rektPayout);
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout) : '';
+          console.log('++ | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
         } else {
           this.loseTrades.push(-1);
-          this.toDataBase ? this.utils.updateFirebaseResults(this.utils.addFees(-1)) : '';
-          console.log('Resultat --', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), this.utils.getDate());
+          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          console.log('-- | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
         }
 
-        this.inShort = this.inPosition = false;
+        this.inShort = false;
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
       }
     } catch (error) {
       console.error(error);
-      this.utils.stopProcess();
     }
   }
 
 
+  /**
+   * Attend la prochaine candle pour update les résultats.
+   */
+  waitingNextCandle(direction: string) {
+    //console.log("Waiting next candle |", direction, this.utils.getDate());
+    setTimeout(async () => {
+      this.getResult(direction);
+    }, 90000); // 1min 30s
+  }
+
+
+
+  /**
+   * Check for setup on closed candles
+   */
   bullOrBear() {
     const i = this.ohlc.length - 1;
     this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
     const rsiValues = this.indicators.rsi(this.ohlc, 14);
 
-    const lookback = 1;
-    if (this.stratService.bullStrategy(this.haOhlc, i, lookback, rsiValues)) {
-      this.inLong = true;
-    } else if (this.stratService.bearStrategy(this.haOhlc, i, lookback, rsiValues)) {
-      this.inShort = true;
+    if (!this.inLong && !this.inShort) {
+      if (this.stratService.bullStrategy(this.haOhlc, i, rsiValues)) {
+        this.inLong = true;
+        this.waitingNextCandle('long');
+      } else if (this.stratService.bearStrategy(this.haOhlc, i, rsiValues)) {
+        this.inShort = true;
+        this.waitingNextCandle('short');
+      }
     }
   }
 
@@ -210,14 +214,6 @@ class App extends CandleAbstract {
       'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
   }
 
-  stopConditions(i: number): boolean {
-    return (
-      this.looseInc == 5 ||
-      this.looseInc2 == 5 ||
-      Math.abs(this.high(this.ohlc, i, 0) - this.low(this.ohlc, i, 0)) > 80
-    ) ? true : false;
-  }
-
 
 
 }
@@ -228,5 +224,5 @@ new App(
   new StrategiesService(utilsService),
   new Config(),
   new IndicatorsService(utilsService),
-  new ApiService()
+  new ApiService(utilsService)
 );
