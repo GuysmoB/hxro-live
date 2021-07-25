@@ -63,10 +63,14 @@ class App extends CandleAbstract {
           this.ohlc_tmp.close = this.streamData.price;
           this.ohlc.push(this.ohlc_tmp);
 
-          if (this.countdown == 45) {
-            //console.log('boolOrBear');
+          if (this.countdown == 45 && this.ohlc.length >= 14) {
             this.payout = await _this.apiService.getActualPayout(this.token);
-            this.bullOrBear();
+            if (this.payout.nextPrizePool > 500) {
+              this.bullOrBear();
+            } else {
+              console.log('nextPrizePool', this.payout.nextPrizePool)
+            }
+
           }
         }
 
@@ -209,7 +213,8 @@ class App extends CandleAbstract {
   }
 
   formatTelegramMsg() {
-    return 'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
+    return 'Snipe 1m\n' +
+      'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
       'Total R:R : ' + (this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2)) + '\n' +
       'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
   }

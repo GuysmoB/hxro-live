@@ -13,17 +13,14 @@ export class StrategiesService extends CandleAbstract {
   bullStrategy(haOhlc: any, i: number, rsiValues: any): any {
     let cond = true;
     for (let j = (i - 1); j >= (i - this.lookback); j--) {
-      const ha = haOhlc[j];
-      if (ha.close > ha.open) { // if bull
+      if (haOhlc[j].bull) {
         cond = false;
         break;
       }
     }
 
     if (
-      rsiValues
-      && rsiValues.length >= 14
-      && rsiValues[i] < 50
+      rsiValues[i] < 50
       && haOhlc[i].bull) {
       console.log('Entry bull setup', this.utils.getDate());
       return true;
@@ -36,16 +33,14 @@ export class StrategiesService extends CandleAbstract {
   bearStrategy(haOhlc: any, i: number, rsiValues: any): any {
     let cond = true;
     for (let j = (i - 1); j >= (i - this.lookback); j--) {
-      const ha = haOhlc[j];
-      if (ha.close < ha.open) { // if bear
+      if (haOhlc[j].bear) {
         cond = false;
         break;
       }
     }
 
-    if (rsiValues
-      && rsiValues.length >= 14
-      && rsiValues[i] > 50
+    if (
+      rsiValues[i] > 50
       && haOhlc[i].bear) {
       console.log('Entry bear setup', this.utils.getDate());
       return true;
