@@ -21,24 +21,22 @@ class App extends CandleAbstract {
   inShort = false;
   inPosition = false;
   payout: any;
-  countdown: any;
-  ohlc_tmp: any;
+  second: any;
+  minute: any;
   ohlc = [];
   haOhlc = [];
-  streamData: any;
   telegramBot: any;
   toDataBase = false;
-  isCountDownSnipe = false;
+  isCountDown55 = false;
   token = 'b15346f6544b4d289139b2feba668b20';
   url = 'wss://btc.data.hxro.io/live';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
     private indicators: IndicatorsService, private apiService: ApiService) {
     super();
+    console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
-
-    this.getStreamData(this.url);
     this.main();
   }
 
@@ -51,77 +49,28 @@ class App extends CandleAbstract {
     const _this = this;
 
     setInterval(async () => {
-      this.countdown = new Date().getSeconds();
-      if (this.countdown == 5 || this.countdown == 20 || this.countdown == 35 || this.countdown == 50) {
-        (this.isCountDownSnipe) ? this.isCountDownSnipe = false : '';
+      this.second = new Date().getSeconds();
+      this.minute = new Date().getMinutes();
+
+      if (this.second == 10) {
+        (this.isCountDown55) ? this.isCountDown55 = false : '';
       }
 
-      if ((this.countdown == 0 || this.countdown == 15 || this.countdown == 30 || this.countdown == 45) && !this.isCountDownSnipe) {
-        this.isCountDownSnipe = true;
+      if (this.second == 55 && !this.isCountDown55) {
+        this.isCountDown55 = true;
+        this.payout = await _this.apiService.getActualPayout(this.token);
 
-        if (this.ohlc_tmp) {
-          this.ohlc_tmp.close = this.streamData.price;
-          this.ohlc.push(this.ohlc_tmp);
-
-          if (this.countdown == 45 && this.ohlc.length >= 14) {
-            this.payout = await _this.apiService.getActualPayout(this.token);
-            if (this.payout.nextPrizePool > 500) {
-              this.bullOrBear();
-            } else {
-              console.log('nextPrizePool', this.payout.nextPrizePool)
-            }
-
-          }
+        if (this.ohlc.length >= 14 && this.payout.nextPrizePool > 500) {
+          this.bullOrBear();
+        } else {
+          console.log('nextPrizePool', this.payout.nextPrizePool)
         }
 
-        this.ohlc_tmp = {
-          time: this.streamData.ts,
-          open: this.streamData.price,
-          high: this.streamData.price,
-          low: this.streamData.price,
-        };
       }
+
     }, 500);
   }
 
-
-  /**
-   * Ecoute le WS et ajuste high/low à chaque tick.
-   */
-  getStreamData(url: string) {
-    let ws = new WebSocket(url);
-    const _this = this;
-
-    ws.onopen = function () {
-      console.log("Socket is connected. Listenning data ...");
-    }
-
-    ws.onmessage = function (event: any) {
-      _this.streamData = JSON.parse(event.data);
-
-      if (_this.ohlc_tmp) {
-        if (_this.streamData.price > _this.ohlc_tmp.high) {
-          _this.ohlc_tmp.high = _this.streamData.price;
-        }
-        if (_this.streamData.price < _this.ohlc_tmp.low) {
-          _this.ohlc_tmp.low = _this.streamData.price;
-        }
-      }
-    };
-
-    ws.onclose = function (e) {
-      console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
-      setTimeout(function () {
-        _this.getStreamData(_this.url);
-      }, 1000);
-      _this.sendTelegramMsg(_this.telegramBot, _this.config.chatId, 'Reconnecting ...');
-    };
-
-    ws.onerror = function (err: any) {
-      console.error('Socket encountered error: ', err.message, 'Closing socket');
-      ws.close();
-    };
-  }
 
   /**
    * Recherche de setup sur les candles closes et les sauvegarde dans AllData
