@@ -136,9 +136,8 @@ export class ApiService {
       }
     }
 
-    if ($moonPayout == NaN || $rektPayout == NaN) {
-      console.log('SeriesId', seriesId);
-      console.log('Contests', contests, contests.length);
+    if ($moonPayout == undefined || $rektPayout == undefined) {
+      console.log('Apply default payout');
       $moonPayout = $rektPayout = 1.91;
     }
 
