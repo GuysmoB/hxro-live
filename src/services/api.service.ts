@@ -136,12 +136,11 @@ export class ApiService {
       }
     }
 
-
-    /* if ($moonPayout == NaN || $rektPayout == NaN) {
+    if ($moonPayout == NaN || $rektPayout == NaN) {
       console.log('SeriesId', seriesId);
       console.log('Contests', contests, contests.length);
       $moonPayout = $rektPayout = 1.91;
-    } */
+    }
 
     return {
       moonPayout: this.utils.round(this.utils.addFees($moonPayout) - 1, 2),
