@@ -4,10 +4,10 @@ export class ApiService {
 
   constructor(private utils: UtilsService) { }
 
-  getDataFromApi(): Promise<any> {
+  getDataFromApi(url: string): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
       const axios = require('axios').default;
-      const res = await axios.get("https://btc.history.hxro.io/1m");
+      const res = await axios.get(url);
       if (res) {
         resolve(res.data);
       } else {
@@ -20,7 +20,7 @@ export class ApiService {
   getSeriesId(token: string): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
       const contestPair = "BTC/USD";
-      const contestDuration = "00:01:00";
+      const contestDuration = "00:05:00";
       const assetType = "USDT";
       const apiToken = token;
 
@@ -136,9 +136,7 @@ export class ApiService {
       }
     }
 
-    if ($moonPayout == NaN || $rektPayout == NaN) {
-      console.log('SeriesId', seriesId);
-      console.log('Contests', contests, contests.length);
+    if ($moonPayout == undefined || $rektPayout == undefined) {
       $moonPayout = $rektPayout = 1.91;
     }
 

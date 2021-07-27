@@ -23,11 +23,9 @@ class App extends CandleAbstract {
   payout: any;
   second: any;
   minute: any;
-  ohlc = [];
-  haOhlc = [];
   telegramBot: any;
   toDataBase = false;
-  isCountDown55 = false;
+  isCountDownReset = false;
   token = 'b15346f6544b4d289139b2feba668b20';
   url = 'wss://btc.data.hxro.io/live';
 
@@ -53,21 +51,18 @@ class App extends CandleAbstract {
       this.minute = new Date().getMinutes();
 
       if (this.second == 10) {
-        (this.isCountDown55) ? this.isCountDown55 = false : '';
+        (this.isCountDownReset) ? this.isCountDownReset = false : '';
       }
 
-      if (this.second == 55 && !this.isCountDown55) {
-        this.isCountDown55 = true;
+      if (this.second == 50 && (this.minute.toString().substr(-1) == '4' || this.minute.toString().substr(-1) == '9') && !this.isCountDownReset) {
+        this.isCountDownReset = true;
         this.payout = await _this.apiService.getActualPayout(this.token);
-
-        if (this.ohlc.length >= 14 && this.payout.nextPrizePool > 500) {
+        if (this.payout.nextPrizePool > 200) {
           this.bullOrBear();
         } else {
-          console.log('nextPrizePool', this.payout.nextPrizePool)
+          console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
         }
-
       }
-
     }, 500);
   }
 
@@ -77,34 +72,33 @@ class App extends CandleAbstract {
    */
   async getResult(direction: string) {
     try {
-      const allData = await this.apiService.getDataFromApi();
-      this.ohlc = allData.data.slice();
-      const i = this.ohlc.length - 2; // candle avant la candle en cour
-      this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
+      let ohlc = await this.apiService.getDataFromApi("https://btc.history.hxro.io/5m");
+      ohlc = ohlc.data.slice();
+      const i = ohlc.length - 2; // candle avant la candle en cour
 
       if (direction == 'long') {
-        if (this.isUp(this.ohlc, i, 0)) {
+        if (this.isUp(ohlc, i, 0)) {
           this.winTrades.push(this.payout.moonPayout);
           this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout) : '';
-          console.log('++ | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
+          console.log('++ | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         } else {
           this.loseTrades.push(-1);
           this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
-          console.log('-- | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
+          console.log('-- | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         }
         this.inLong = false;
         this.sendTelegramMsg(this.telegramBot, this.config.chatId, this.formatTelegramMsg());
       }
 
       else if (direction == 'short') {
-        if (!this.isUp(this.ohlc, i, 0)) {
+        if (!this.isUp(ohlc, i, 0)) {
           this.winTrades.push(this.payout.rektPayout);
           this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout) : '';
-          console.log('++ | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
+          console.log('++ | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         } else {
           this.loseTrades.push(-1);
           this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
-          console.log('-- | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
+          console.log('-- | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         }
 
         this.inShort = false;
@@ -123,7 +117,7 @@ class App extends CandleAbstract {
     //console.log("Waiting next candle |", direction, this.utils.getDate());
     setTimeout(async () => {
       this.getResult(direction);
-    }, 90000); // 1min 30s
+    }, 60000 * 5 + 30000); // 5min 30s
   }
 
 
@@ -131,16 +125,18 @@ class App extends CandleAbstract {
   /**
    * Check for setup on closed candles
    */
-  bullOrBear() {
-    const i = this.ohlc.length - 1;
-    this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
-    const rsiValues = this.indicators.rsi(this.ohlc, 14);
+  async bullOrBear() {
+    let ohlc = await this.apiService.getDataFromApi("https://btc.history.hxro.io/1m");
+    ohlc = ohlc.data.slice();
+    const i = ohlc.length - 1;
+    const haOhlc = this.utils.setHeikenAshiData(ohlc);
+    const rsiValues = this.indicators.rsi(ohlc, 14);
 
     if (!this.inLong && !this.inShort) {
-      if (this.stratService.bullStrategy(this.haOhlc, i, rsiValues)) {
+      if (this.stratService.bullStrategy(haOhlc, i, rsiValues)) {
         this.inLong = true;
         this.waitingNextCandle('long');
-      } else if (this.stratService.bearStrategy(this.haOhlc, i, rsiValues)) {
+      } else if (this.stratService.bearStrategy(haOhlc, i, rsiValues)) {
         this.inShort = true;
         this.waitingNextCandle('short');
       }
@@ -154,15 +150,12 @@ class App extends CandleAbstract {
     try {
       telegramBotObject.sendMessage(chatId, msg);
     } catch (err) {
-      console.log(
-        "Something went wrong when trying to send a Telegram notification",
-        err
-      );
+      console.log("Something went wrong when trying to send a Telegram notification", err);
     }
   }
 
   formatTelegramMsg() {
-    return 'Snipe 1m\n' +
+    return 'Snipe 5m\n' +
       'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
       'Total R:R : ' + (this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2)) + '\n' +
       'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
