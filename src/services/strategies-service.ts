@@ -21,7 +21,7 @@ export class StrategiesService extends CandleAbstract {
 
     if (
       rsiValues[i] < 40
-      && haOhlc[i].bull) {
+      /* && haOhlc[i].bull */) {
       console.log('Entry bull setup', this.utils.getDate());
       return true;
     } else {
@@ -41,7 +41,7 @@ export class StrategiesService extends CandleAbstract {
 
     if (
       rsiValues[i] > 60
-      && haOhlc[i].bear) {
+      /* && haOhlc[i].bear */) {
       console.log('Entry bear setup', this.utils.getDate());
       return true;
     } else {
