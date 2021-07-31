@@ -1,5 +1,4 @@
-import { ApiService } from './services/api.service';
-// https://www.digitalocean.com/community/tutorials/setting-up-a-node-project-with-typescript
+import { ApiService } from './services/api.service';// https://www.digitalocean.com/community/tutorials/setting-up-a-node-project-with-typescript
 // https://github.com/nikvdp/pidcrypt/issues/5#issuecomment-511383690
 // https://github.com/Microsoft/TypeScript/issues/17645#issuecomment-320556012
 
@@ -23,6 +22,7 @@ class App extends CandleAbstract {
   payout: any;
   countdown: any;
   result: any;
+  arg: string;
   ohlc = [];
   haOhlc = [];
   telegramBot: any;
@@ -36,6 +36,7 @@ class App extends CandleAbstract {
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
+    this.checkArg();
     this.main();
   }
 
@@ -130,7 +131,6 @@ class App extends CandleAbstract {
    */
   bullOrBear() {
     const i = this.ohlc.length - 1; // candle en construction
-    const rsiValues = this.indicators.rsi(this.ohlc, 14);
 
     if (this.inLong) {
       if (this.stopConditions(i)) {
@@ -149,10 +149,10 @@ class App extends CandleAbstract {
         this.waitingNextCandle('short');
       }
     } else {
-      if (this.stratService.bullStrategy(this.haOhlc, i, rsiValues)) {
+      if (this.arg == 'long' && this.stratService.bullStrategy(this.haOhlc, i)) {
         this.inLong = true;
         this.waitingNextCandle('long');
-      } else if (this.stratService.bearStrategy(this.haOhlc, i, rsiValues)) {
+      } else if (this.arg == 'short' && this.stratService.bearStrategy(this.haOhlc, i)) {
         this.inShort = true;
         this.waitingNextCandle('short');
       }
@@ -172,7 +172,8 @@ class App extends CandleAbstract {
   }
 
   formatTelegramMsg() {
-    return 'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
+    return 'Long or short\n' +
+      'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
       'Payout : ' + this.result + '\n' +
       'Total R:R : ' + (this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2)) + '\n' +
       'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
@@ -187,6 +188,25 @@ class App extends CandleAbstract {
       Math.abs(this.high(this.ohlc, i, 0) - this.low(this.ohlc, i, 0)) > 80
     ) ? true : false;
   }
+
+  stopProcess(msg: string) {
+    console.error(msg)
+    process.exit(1);
+  }
+
+
+  checkArg() {
+    this.arg = process.argv.slice(2)[0];
+
+    if (this.arg === undefined) {
+      this.stopProcess('### Pas de paramètre long or short ###');
+    } else if (this.arg !== 'long') {
+      if (this.arg !== 'short') {
+        this.stopProcess('### Pas de paramètre long or short ###');
+      }
+    }
+  }
+
 }
 
 const utilsService = new UtilsService();
