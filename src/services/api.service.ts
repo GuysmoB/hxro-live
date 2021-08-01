@@ -120,6 +120,19 @@ export class ApiService {
   }
 
 
+  getObSnapshot() {
+    return new Promise<any>(async (resolve, reject) => {
+      const fetch = require('node-fetch');
+
+      const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=1000';
+      const options = { method: 'GET', headers: { Accept: 'text/plain' } };
+
+      fetch(url, options)
+        .then(res => res.json())
+        .then(json => resolve(json))
+        .catch(err => reject('error:' + err));
+    });
+  }
 
   async getActualPayout(token: string) {
     let $moonPayout: any;

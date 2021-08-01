@@ -11,6 +11,7 @@ import { UtilsService } from "./services/utils-service";
 import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
+import WebSocket from "ws";
 
 class App extends CandleAbstract {
 
@@ -23,6 +24,44 @@ class App extends CandleAbstract {
   payout: any;
   countdown: any;
   result: any;
+  obStream: any;
+  ob: any;
+  snapshot = {
+    bids: [
+      ['41716.56000000', '0.01918900'],
+      ['41710.88000000', '0.60000000'],
+      ['41710.87000000', '0.92750600'],
+      ['41710.85000000', '0.16772000'],
+      ['41710.11000000', '0.03000000'],
+      ['41709.11000000', '0.07534200'],
+    ],
+    asks: [
+      ['41716.57000000', '0.48386100'],
+      ['41719.54000000', '0.01372400'],
+      ['41719.99000000', '0.00753900'],
+      ['41720.00000000', '0.07851500'],
+      ['41722.08000000', '0.08799900'],
+    ]
+  };
+  obBuffer = {
+    bids: [],
+    asks: []
+  };
+  obBufferTest = {
+    bids: [
+      ['41716.56000000', '0.00000000'],
+      ['41710.88000000', '0.60055555'],
+      ['41710.87000000', '0.92750600'],
+      ['41710.85000000', '0.99772000'],
+      ['41710.11000000', '0.00000000'],
+    ],
+    asks: [
+      ['41716.57000000', '0.48386100'],
+      ['41719.99000000', '0.00753900'],
+      ['41720.00000000', '1.33351500'],
+      ['41722.08000000', '0.00000000'],
+    ]
+  };
   ohlc = [];
   haOhlc = [];
   telegramBot: any;
@@ -36,6 +75,7 @@ class App extends CandleAbstract {
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
+    this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
     this.main();
   }
 
@@ -46,6 +86,22 @@ class App extends CandleAbstract {
    */
   async main() {
     const _this = this;
+
+    for (let i = 0; i < this.obBufferTest.bids.length; i++) {
+      const bPrice = this.obBufferTest.bids[i][0];
+      const bQuantity = this.obBufferTest.bids[i][1];
+
+      const index = this.snapshot.bids.findIndex(x => x[0] == bPrice);
+      if (index >= 0) {
+        if (bQuantity === '0.00000000') {
+          this.snapshot.bids.splice(index, 1);
+        } else {
+          this.snapshot.bids[index][1] = bQuantity;
+        }
+      } else {
+        //console.log('ajouter');
+      }
+    }
 
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
@@ -62,8 +118,57 @@ class App extends CandleAbstract {
         this.bullOrBear();
       }
     }, 500);
+
+
+    setInterval(async () => {
+      //console.log('obbuffer', this.obBuffer.bids.length)
+      /* for (let i = 0; i < this.obBuffer.bids.length; i++) {
+        const bPrice = this.obBuffer.bids[i][0];
+        const bQuantity = this.obBuffer.bids[i][1];
+      } */
+    }, 10000);
   }
 
+  /**
+   * Ecoute le WS et ajuste high/low à chaque tick.
+   */
+  async getObStreamData(url: string) {
+    this.ob = await this.apiService.getObSnapshot();
+    //console.log('res', this.ob)
+
+    let ws = new WebSocket(url);
+    const _this = this;
+
+    ws.onopen = function () {
+      console.log("Socket is connected. Listenning data ...");
+    }
+
+    ws.onmessage = function (event: any) {
+      const stream = JSON.parse(event.data);
+      _this.obBuffer.bids = [..._this.obBuffer.bids, ...stream.b];
+
+      //console.log('size', _this.obStream.b.length)
+      /* console.log('price', _this.obStream.b[0][0])
+      console.log('quantity', _this.obStream.b[0][1]) */
+
+
+      //console.log('price', _this.obStream.bid[0])
+
+    };
+
+    ws.onclose = function (e) {
+      console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+      setTimeout(function () {
+        _this.getObStreamData(url);
+      }, 1000);
+      _this.sendTelegramMsg(_this.telegramBot, _this.config.chatId, 'Reconnecting ...');
+    };
+
+    ws.onerror = function (err: any) {
+      console.error('Socket encountered error: ', err.message, 'Closing socket');
+      ws.close();
+    };
+  }
 
 
   /**
