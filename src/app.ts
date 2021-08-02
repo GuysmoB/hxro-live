@@ -26,7 +26,8 @@ class App extends CandleAbstract {
   result: any;
   obStream: any;
   ob: any;
-  snapshot = {
+  snapshot: any;
+  /* snapshot = {
     bids: [
       ['41716.56000000', '0.01918900'],
       ['41710.88000000', '0.60000000'],
@@ -42,7 +43,7 @@ class App extends CandleAbstract {
       ['41720.00000000', '0.07851500'],
       ['41722.08000000', '0.08799900'],
     ]
-  };
+  }; */
   obBuffer = {
     bids: [],
     asks: []
@@ -54,12 +55,15 @@ class App extends CandleAbstract {
       ['41710.87000000', '0.92750600'],
       ['41710.85000000', '0.99772000'],
       ['41710.11000000', '0.00000000'],
+      ['50000.00000000', '0.35240000'],
     ],
     asks: [
       ['41716.57000000', '0.48386100'],
       ['41719.99000000', '0.00753900'],
       ['41720.00000000', '1.33351500'],
       ['41722.08000000', '0.00000000'],
+      ['11720.00000000', '2.00001500'],
+      ['11000.00000000', '0.00000000'],
     ]
   };
   ohlc = [];
@@ -87,55 +91,49 @@ class App extends CandleAbstract {
   async main() {
     const _this = this;
 
-    for (let i = 0; i < this.obBufferTest.bids.length; i++) {
-      const bPrice = this.obBufferTest.bids[i][0];
-      const bQuantity = this.obBufferTest.bids[i][1];
-
-      const index = this.snapshot.bids.findIndex(x => x[0] == bPrice);
-      if (index >= 0) {
-        if (bQuantity === '0.00000000') {
-          this.snapshot.bids.splice(index, 1);
-        } else {
-          this.snapshot.bids[index][1] = bQuantity;
-        }
-      } else {
-        //console.log('ajouter');
-      }
-    }
-
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
       if (this.countdown == 10) {
         (this.isCountDown55) ? this.isCountDown55 = false : '';
       }
-
-      if (this.countdown == 55 && !this.isCountDown55) {
-        this.isCountDown55 = true; // Doit être la 1er ligne
-        this.payout = await _this.apiService.getActualPayout(this.token);
-        const allData = await this.apiService.getDataFromApi();
-        this.ohlc = allData.data.slice();
-        this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
-        this.bullOrBear();
-      }
+      /* 
+            if (this.countdown == 55 && !this.isCountDown55) {
+              this.isCountDown55 = true; // Doit être la 1er ligne
+              this.payout = await _this.apiService.getActualPayout(this.token);
+              const allData = await this.apiService.getDataFromApi();
+              this.ohlc = allData.data.slice();
+              this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
+              this.bullOrBear();
+            } */
     }, 500);
 
 
     setInterval(async () => {
-      //console.log('obbuffer', this.obBuffer.bids.length)
-      /* for (let i = 0; i < this.obBuffer.bids.length; i++) {
-        const bPrice = this.obBuffer.bids[i][0];
-        const bQuantity = this.obBuffer.bids[i][1];
-      } */
-    }, 10000);
+      this.snapshot.bids = _this.utils.obUpdate(this.obBuffer.bids, this.snapshot.bids);
+      this.snapshot.asks = _this.utils.obUpdate(this.obBuffer.asks, this.snapshot.asks);
+      this.snapshot.bids.sort((a, b) => b[0] - a[0]);
+      this.snapshot.asks.sort((a, b) => a[0] - b[0]);
+
+      const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
+      const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
+      const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
+      const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
+      console.log('................');
+      console.log('Delta  10%', _this.utils.round(res10.bidVolume - res10.askVolume, 2), _this.utils.getDate());
+      console.log('Delta   5%', _this.utils.round(res5.bidVolume - res5.askVolume, 2), _this.utils.getDate());
+      console.log('Delta 2.5%', _this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2), _this.utils.getDate());
+      console.log('Delta   1%', _this.utils.round(res1.bidVolume - res1.askVolume, 2), _this.utils.getDate());
+      this.obBuffer = { bids: [], asks: [] };
+    }, 30000);
   }
 
   /**
    * Ecoute le WS et ajuste high/low à chaque tick.
    */
   async getObStreamData(url: string) {
-    this.ob = await this.apiService.getObSnapshot();
-    //console.log('res', this.ob)
-
+    this.snapshot = await this.apiService.getObSnapshot();
+    this.snapshot.bids = this.utils.convertArrayToNumber(this.snapshot.bids);
+    this.snapshot.asks = this.utils.convertArrayToNumber(this.snapshot.asks);
     let ws = new WebSocket(url);
     const _this = this;
 
@@ -145,15 +143,8 @@ class App extends CandleAbstract {
 
     ws.onmessage = function (event: any) {
       const stream = JSON.parse(event.data);
-      _this.obBuffer.bids = [..._this.obBuffer.bids, ...stream.b];
-
-      //console.log('size', _this.obStream.b.length)
-      /* console.log('price', _this.obStream.b[0][0])
-      console.log('quantity', _this.obStream.b[0][1]) */
-
-
-      //console.log('price', _this.obStream.bid[0])
-
+      _this.obBuffer.bids = [..._this.obBuffer.bids, ..._this.utils.convertArrayToNumber(stream.b)];
+      _this.obBuffer.asks = [..._this.obBuffer.asks, ..._this.utils.convertArrayToNumber(stream.a)];
     };
 
     ws.onclose = function (e) {

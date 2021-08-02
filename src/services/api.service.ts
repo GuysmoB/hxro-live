@@ -124,7 +124,7 @@ export class ApiService {
     return new Promise<any>(async (resolve, reject) => {
       const fetch = require('node-fetch');
 
-      const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=1000';
+      const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=5000';
       const options = { method: 'GET', headers: { Accept: 'text/plain' } };
 
       fetch(url, options)

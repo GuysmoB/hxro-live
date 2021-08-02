@@ -15,6 +15,70 @@ export class UtilsService {
   }
 
 
+  getVolumeDepth(snapshot: any, depth: number) {
+    const price = snapshot.bids[0][0];
+    const bidLimitDepthPrice = price - (price * (depth / 100));
+    const askLimitDepthPrice = price + (price * (depth / 100));
+    let bidResult = [];
+    let askResult = [];
+
+    for (const i in snapshot.bids) {
+      const elementPrice = snapshot.bids[i][0];
+      const elementQuantity = snapshot.bids[i][1];
+
+      if (elementPrice < bidLimitDepthPrice) {
+        break;
+      } else {
+        bidResult.push(elementQuantity);
+      }
+    }
+
+    for (const i in snapshot.asks) {
+      const elementPrice = snapshot.asks[i][0];
+      const elementQuantity = snapshot.asks[i][1];
+
+      if (elementPrice > askLimitDepthPrice) {
+        break;
+      } else {
+        askResult.push(elementQuantity);
+      }
+    }
+
+    return {
+      bidVolume: this.round(bidResult.reduce((a, b) => a + b, 0), 2),
+      askVolume: this.round(askResult.reduce((a, b) => a + b, 0), 2)
+    }
+  }
+
+  convertArrayToNumber(array: any) {
+    for (const i in array) {
+      array[i][0] = +array[i][0];
+      array[i][1] = +array[i][1];
+    }
+    return array;
+  }
+
+  /**
+   * Mets à jour l'orderbook avec les données du buffer
+   */
+  obUpdate(ob: Number[][], snapshot: Number[][]) {
+    for (let i = 0; i < ob.length; i++) {
+      const bPrice = ob[i][0];
+      const bQuantity = ob[i][1];
+
+      const index = snapshot.findIndex(x => x[0] == bPrice);
+      if (index >= 0) {
+        if (bQuantity == 0) {
+          snapshot.splice(index, 1);
+        } else {
+          snapshot[index][1] = bQuantity;
+        }
+      } else if (index == -1 && bQuantity != 0) {
+        snapshot.push([bPrice, bQuantity]);
+      }
+    }
+    return snapshot;
+  }
 
   /**
  * Fait la somme des nombres d'un tableau
