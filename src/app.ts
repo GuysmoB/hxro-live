@@ -13,6 +13,10 @@ import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 import WebSocket from "ws";
 
+/**
+ * bid - ask / total => -342 - 1540 = 22% seller dominance
+ * 
+ */
 class App extends CandleAbstract {
 
   winTrades = [];
@@ -27,44 +31,9 @@ class App extends CandleAbstract {
   obStream: any;
   ob: any;
   snapshot: any;
-  /* snapshot = {
-    bids: [
-      ['41716.56000000', '0.01918900'],
-      ['41710.88000000', '0.60000000'],
-      ['41710.87000000', '0.92750600'],
-      ['41710.85000000', '0.16772000'],
-      ['41710.11000000', '0.03000000'],
-      ['41709.11000000', '0.07534200'],
-    ],
-    asks: [
-      ['41716.57000000', '0.48386100'],
-      ['41719.54000000', '0.01372400'],
-      ['41719.99000000', '0.00753900'],
-      ['41720.00000000', '0.07851500'],
-      ['41722.08000000', '0.08799900'],
-    ]
-  }; */
   obBuffer = {
     bids: [],
     asks: []
-  };
-  obBufferTest = {
-    bids: [
-      ['41716.56000000', '0.00000000'],
-      ['41710.88000000', '0.60055555'],
-      ['41710.87000000', '0.92750600'],
-      ['41710.85000000', '0.99772000'],
-      ['41710.11000000', '0.00000000'],
-      ['50000.00000000', '0.35240000'],
-    ],
-    asks: [
-      ['41716.57000000', '0.48386100'],
-      ['41719.99000000', '0.00753900'],
-      ['41720.00000000', '1.33351500'],
-      ['41722.08000000', '0.00000000'],
-      ['11720.00000000', '2.00001500'],
-      ['11000.00000000', '0.00000000'],
-    ]
   };
   ohlc = [];
   haOhlc = [];
@@ -118,13 +87,21 @@ class App extends CandleAbstract {
       const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
       const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
       const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
+      const delta1 = _this.utils.round(res1.bidVolume - res1.askVolume, 2);
+      const delta2p5 = _this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
+      const delta5 = _this.utils.round(res5.bidVolume - res5.askVolume, 2);
+      const delta10 = _this.utils.round(res10.bidVolume - res10.askVolume, 2);
+      const ratio1 = _this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
+      const ratio2p5 = _this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
+      const ratio5 = _this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
+      const ratio10 = _this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
       console.log('................');
-      console.log('Delta  10%', _this.utils.round(res10.bidVolume - res10.askVolume, 2), _this.utils.getDate());
-      console.log('Delta   5%', _this.utils.round(res5.bidVolume - res5.askVolume, 2), _this.utils.getDate());
-      console.log('Delta 2.5%', _this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2), _this.utils.getDate());
-      console.log('Delta   1%', _this.utils.round(res1.bidVolume - res1.askVolume, 2), _this.utils.getDate());
+      console.log('Depth  10% | Delta :', delta10, '| Ratio% :', ratio10, _this.utils.getDate());
+      console.log('Depth   5% | Delta :', delta5, '| Ratio% :', ratio5, _this.utils.getDate());
+      console.log('Depth 2.5% | Delta :', delta2p5, '| Ratio% :', ratio2p5, _this.utils.getDate());
+      console.log('Depth   1% | Delta :', delta1, '| Ratio% :', ratio1, _this.utils.getDate());
       this.obBuffer = { bids: [], asks: [] };
-    }, 30000);
+    }, 60000);
   }
 
   /**
