@@ -60,23 +60,6 @@ class App extends CandleAbstract {
     const _this = this;
 
     setInterval(async () => {
-      /*  this.countdown = new Date().getSeconds();
-       if (this.countdown == 10) {
-         (this.isCountDown55) ? this.isCountDown55 = false : '';
-       } */
-      /* 
-            if (this.countdown == 55 && !this.isCountDown55) {
-              this.isCountDown55 = true; // Doit être la 1er ligne
-              this.payout = await _this.apiService.getActualPayout(this.token);
-              const allData = await this.apiService.getDataFromApi();
-              this.ohlc = allData.data.slice();
-              this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
-              this.bullOrBear();
-            } */
-    }, 500);
-
-
-    setInterval(async () => {
       this.countdown = new Date().getSeconds();
       if (this.countdown == 10) {
         (this.isCountDown55) ? this.isCountDown55 = false : '';
