@@ -66,6 +66,7 @@ class App extends CandleAbstract {
       }
 
       if (this.countdown == 55 && !this.isCountDown55) {
+        this.isCountDown55 = true;
         this.snapshot.bids = _this.utils.obUpdate(this.obBuffer.bids, this.snapshot.bids);
         this.snapshot.asks = _this.utils.obUpdate(this.obBuffer.asks, this.snapshot.asks);
         this.snapshot.bids.sort((a, b) => b[0] - a[0]);
@@ -96,7 +97,7 @@ class App extends CandleAbstract {
         }
         fs.appendFileSync('./data.json', JSON.stringify(obj) + ',\n');
       }
-    }, 1000);
+    }, 500);
   }
 
   /**
