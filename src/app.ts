@@ -38,7 +38,7 @@ class App extends CandleAbstract {
   haOhlc = [];
   telegramBot: any;
   toDataBase = false;
-  isCountDown55 = false;
+  isStarted = false;
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
@@ -54,50 +54,56 @@ class App extends CandleAbstract {
 
 
   /**
-   * Gère la création des candles et de la logique principale..
+   * logique principale..
    */
   async main() {
-    const _this = this;
-
     setInterval(async () => {
       this.countdown = new Date().getSeconds();
-      if (this.countdown == 10) {
-        (this.isCountDown55) ? this.isCountDown55 = false : '';
+
+      if (this.countdown == 55 && !this.isStarted) {
+        this.isStarted = true;
+        this.manageOb();
+
+        setInterval(async () => {
+          this.manageOb();
+        }, 60000);
       }
+    }, 1000);
+  }
 
-      if (this.countdown == 55 && !this.isCountDown55) {
-        this.isCountDown55 = true;
-        this.snapshot.bids = _this.utils.obUpdate(this.obBuffer.bids, this.snapshot.bids);
-        this.snapshot.asks = _this.utils.obUpdate(this.obBuffer.asks, this.snapshot.asks);
-        this.snapshot.bids.sort((a, b) => b[0] - a[0]);
-        this.snapshot.asks.sort((a, b) => a[0] - b[0]);
+  /**
+   * MAJ de l'ob.
+   */
+  manageOb() {
+    this.snapshot.bids = this.utils.obUpdate(this.obBuffer.bids, this.snapshot.bids);
+    this.snapshot.asks = this.utils.obUpdate(this.obBuffer.asks, this.snapshot.asks);
+    this.snapshot.bids.sort((a, b) => b[0] - a[0]);
+    this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
-        const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
-        const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
-        const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
-        const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
-        const delta1 = _this.utils.round(res1.bidVolume - res1.askVolume, 2);
-        const delta2p5 = _this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
-        const delta5 = _this.utils.round(res5.bidVolume - res5.askVolume, 2);
-        const delta10 = _this.utils.round(res10.bidVolume - res10.askVolume, 2);
-        const ratio1 = _this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
-        const ratio2p5 = _this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
-        const ratio5 = _this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
-        const ratio10 = _this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
-        console.log('................');
-        console.log('Depth  10% | Delta :', delta10, '| Ratio% :', ratio10, _this.utils.getDate());
-        console.log('Depth   5% | Delta :', delta5, '| Ratio% :', ratio5, _this.utils.getDate());
-        console.log('Depth 2.5% | Delta :', delta2p5, '| Ratio% :', ratio2p5, _this.utils.getDate());
-        console.log('Depth   1% | Delta :', delta1, '| Ratio% :', ratio1, _this.utils.getDate());
-        this.obBuffer = { bids: [], asks: [] };
+    const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
+    const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
+    const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
+    const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
+    const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
+    const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
+    const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
+    const delta10 = this.utils.round(res10.bidVolume - res10.askVolume, 2);
+    const ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
+    const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
+    const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
+    const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
+    console.log('................');
+    console.log('Depth  10% | Delta :', delta10, '| Ratio% :', ratio10, this.utils.getDate());
+    console.log('Depth   5% | Delta :', delta5, '| Ratio% :', ratio5, this.utils.getDate());
+    console.log('Depth 2.5% | Delta :', delta2p5, '| Ratio% :', ratio2p5, this.utils.getDate());
+    console.log('Depth   1% | Delta :', delta1, '| Ratio% :', ratio1, this.utils.getDate());
+    this.obBuffer = { bids: [], asks: [] };
 
-        const obj = {
-          time: Date.now(), delta1: delta1, delta2p5: delta2p5, delta5: delta5, delta10: delta10,
-          ratio1: ratio1, ratio2p5: ratio2p5, ratio5: ratio5, ratio10: ratio10
-        }
-        fs.appendFileSync('./data.json', JSON.stringify(obj) + ',\n');
-      }
-    }, 500);
+    const obj = {
+      time: Date.now(), delta1: delta1, delta2p5: delta2p5, delta5: delta5, delta10: delta10,
+      ratio1: ratio1, ratio2p5: ratio2p5, ratio5: ratio5, ratio10: ratio10
+    }
+    fs.appendFileSync('./data.json', JSON.stringify(obj) + ',\n');
   }
 
   /**
