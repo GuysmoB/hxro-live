@@ -137,26 +137,26 @@ export class ApiService {
   async getActualPayout(token: string) {
     let $moonPayout: any;
     let $rektPayout: any;
+    let $nextPrizePool = 0;
     const seriesId = await this.getSeriesId(token);
     const contests = await this.getContestsBySeriesId(seriesId);
 
-    contests.forEach(element => {
-      if (element.status === 'Live') {
-        $moonPayout = (element.rektPool / element.moonPool) + 1;
-        $rektPayout = (element.moonPool / element.rektPool) + 1;
+    for (let i = 0; i < contests.length; i++) {
+      if (contests[i].status === 'Live') {
+        $moonPayout = (contests[i].rektPool / contests[i].moonPool) + 1;
+        $rektPayout = (contests[i].moonPool / contests[i].rektPool) + 1;
+        $nextPrizePool = contests[i - 1].prizePool;
       }
-    });
+    }
 
-    if ($moonPayout == NaN || $rektPayout == NaN) {
-      console.log('SeriesId', seriesId);
-      console.log('Contests', contests, contests.length);
+    if ($moonPayout == undefined || $rektPayout == undefined) {
       $moonPayout = $rektPayout = 1.91;
     }
 
     return {
       moonPayout: this.utils.round(this.utils.addFees($moonPayout) - 1, 2),
-      rektPayout: this.utils.round(this.utils.addFees($rektPayout) - 1, 2)
+      rektPayout: this.utils.round(this.utils.addFees($rektPayout) - 1, 2),
+      nextPrizePool: $nextPrizePool
     };
-
   }
 }

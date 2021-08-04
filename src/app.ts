@@ -12,11 +12,7 @@ import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 import WebSocket from "ws";
-import * as fs from 'fs';
-/**
- * bid - ask / total => -342 - 1540 = 22% seller dominance
- * 
- */
+
 class App extends CandleAbstract {
 
   winTrades = [];
@@ -38,7 +34,7 @@ class App extends CandleAbstract {
   haOhlc = [];
   telegramBot: any;
   toDataBase = false;
-  isCountDown55 = false;
+  databasePath = '/main';
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
@@ -46,74 +42,62 @@ class App extends CandleAbstract {
     super();
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
+    utils.initFirebase(this.databasePath);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
     this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
-    this.main();
+
+    const init = setInterval(async () => {
+      if (new Date().getSeconds() == 55) {
+        clearInterval(init);
+        this.main();
+
+        setInterval(async () => {
+          this.main();
+        }, 60 * 1000);
+      }
+    }, 1000);
   }
 
 
 
   /**
-   * Gère la création des candles et de la logique principale..
+   * logique principale..
    */
   async main() {
-    const _this = this;
+    this.payout = await this.apiService.getActualPayout(this.token);
+    const allData = await this.apiService.getDataFromApi();
+    this.ohlc = allData.data.slice();
+    this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
+    this.bullOrBear();
+  }
 
-    setInterval(async () => {
-      /*  this.countdown = new Date().getSeconds();
-       if (this.countdown == 10) {
-         (this.isCountDown55) ? this.isCountDown55 = false : '';
-       } */
-      /* 
-            if (this.countdown == 55 && !this.isCountDown55) {
-              this.isCountDown55 = true; // Doit être la 1er ligne
-              this.payout = await _this.apiService.getActualPayout(this.token);
-              const allData = await this.apiService.getDataFromApi();
-              this.ohlc = allData.data.slice();
-              this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
-              this.bullOrBear();
-            } */
-    }, 500);
+  /**
+   * MAJ de l'ob.
+   */
+  manageOb() {
+    this.snapshot.bids = this.utils.obUpdate(this.obBuffer.bids, this.snapshot.bids);
+    this.snapshot.asks = this.utils.obUpdate(this.obBuffer.asks, this.snapshot.asks);
+    this.snapshot.bids.sort((a, b) => b[0] - a[0]);
+    this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
-
-    setInterval(async () => {
-      this.countdown = new Date().getSeconds();
-      if (this.countdown == 10) {
-        (this.isCountDown55) ? this.isCountDown55 = false : '';
-      }
-
-      if (this.countdown == 55 && !this.isCountDown55) {
-        this.snapshot.bids = _this.utils.obUpdate(this.obBuffer.bids, this.snapshot.bids);
-        this.snapshot.asks = _this.utils.obUpdate(this.obBuffer.asks, this.snapshot.asks);
-        this.snapshot.bids.sort((a, b) => b[0] - a[0]);
-        this.snapshot.asks.sort((a, b) => a[0] - b[0]);
-
-        const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
-        const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
-        const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
-        const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
-        const delta1 = _this.utils.round(res1.bidVolume - res1.askVolume, 2);
-        const delta2p5 = _this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
-        const delta5 = _this.utils.round(res5.bidVolume - res5.askVolume, 2);
-        const delta10 = _this.utils.round(res10.bidVolume - res10.askVolume, 2);
-        const ratio1 = _this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
-        const ratio2p5 = _this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
-        const ratio5 = _this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
-        const ratio10 = _this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
-        console.log('................');
-        console.log('Depth  10% | Delta :', delta10, '| Ratio% :', ratio10, _this.utils.getDate());
-        console.log('Depth   5% | Delta :', delta5, '| Ratio% :', ratio5, _this.utils.getDate());
-        console.log('Depth 2.5% | Delta :', delta2p5, '| Ratio% :', ratio2p5, _this.utils.getDate());
-        console.log('Depth   1% | Delta :', delta1, '| Ratio% :', ratio1, _this.utils.getDate());
-        this.obBuffer = { bids: [], asks: [] };
-
-        const obj = {
-          time: Date.now(), delta1: delta1, delta2p5: delta2p5, delta5: delta5, delta10: delta10,
-          ratio1: ratio1, ratio2p5: ratio2p5, ratio5: ratio5, ratio10: ratio10
-        }
-        fs.appendFileSync('./data.json', JSON.stringify(obj) + ',\n');
-      }
-    }, 1000);
+    const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
+    const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
+    const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
+    const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
+    const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
+    const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
+    const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
+    const delta10 = this.utils.round(res10.bidVolume - res10.askVolume, 2);
+    const ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
+    const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
+    const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
+    const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
+    console.log('................');
+    console.log('Depth  10% | Delta :', delta10, '| Ratio% :', ratio10, this.utils.getDate());
+    console.log('Depth   5% | Delta :', delta5, '| Ratio% :', ratio5, this.utils.getDate());
+    console.log('Depth 2.5% | Delta :', delta2p5, '| Ratio% :', ratio2p5, this.utils.getDate());
+    console.log('Depth   1% | Delta :', delta1, '| Ratio% :', ratio1, this.utils.getDate());
+    this.obBuffer = { bids: [], asks: [] };
   }
 
   /**
@@ -165,13 +149,13 @@ class App extends CandleAbstract {
         if (this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.payout.moonPayout);
           this.result = this.payout.moonPayout;
-          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout, this.databasePath) : '';
           console.log('++ | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc = 0;
         } else {
           this.loseTrades.push(-1);
           this.result = -1;
-          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(-1, this.databasePath) : '';
           console.log('-- | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc++;
         }
@@ -182,13 +166,13 @@ class App extends CandleAbstract {
         if (!this.isUp(this.ohlc, i, 0)) {
           this.winTrades.push(this.payout.rektPayout);
           this.result = this.payout.rektPayout;
-          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout, this.databasePath) : '';
           console.log('++ | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc2 = 0;
         } else {
           this.loseTrades.push(-1);
           this.result = -1;
-          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(-1, this.databasePath) : '';
           console.log('-- | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(this.ohlc[i].time));
           this.looseInc2++;
         }
