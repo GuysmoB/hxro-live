@@ -11,7 +11,6 @@ import { UtilsService } from "./services/utils-service";
 import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
-import WebSocket from "ws";
 
 class App extends CandleAbstract {
 
@@ -25,6 +24,7 @@ class App extends CandleAbstract {
   minute: any;
   telegramBot: any;
   toDataBase = false;
+  databasePath = '/sniper-5min';
   isCountDownReset = false;
   token = 'b15346f6544b4d289139b2feba668b20';
   url = 'wss://btc.data.hxro.io/live';
@@ -34,6 +34,7 @@ class App extends CandleAbstract {
     super();
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
+    utils.initFirebase(this.databasePath);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
     this.main();
   }
@@ -79,11 +80,11 @@ class App extends CandleAbstract {
       if (direction == 'long') {
         if (this.isUp(ohlc, i, 0)) {
           this.winTrades.push(this.payout.moonPayout);
-          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.moonPayout, this.databasePath) : '';
           console.log('++ | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         } else {
           this.loseTrades.push(-1);
-          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(-1, this.databasePath) : '';
           console.log('-- | Payout ', this.payout.moonPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         }
         this.inLong = false;
@@ -93,11 +94,11 @@ class App extends CandleAbstract {
       else if (direction == 'short') {
         if (!this.isUp(ohlc, i, 0)) {
           this.winTrades.push(this.payout.rektPayout);
-          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(this.payout.rektPayout, this.databasePath) : '';
           console.log('++ | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         } else {
           this.loseTrades.push(-1);
-          this.toDataBase ? this.utils.updateFirebaseResults(-1) : '';
+          this.toDataBase ? this.utils.updateFirebaseResults(-1, this.databasePath) : '';
           console.log('-- | Payout ', this.payout.rektPayout, '| Total ', this.utils.round(this.utils.arraySum(this.winTrades.concat(this.loseTrades)), 2), '|', this.utils.getDate(ohlc[i].time));
         }
 
