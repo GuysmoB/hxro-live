@@ -5,6 +5,7 @@
   "main": "dist/app.js",
   "scripts": {
     "start": "tsc && node dist/app.js",
+    "stop": "pkill --signal SIGINT orderbook-data",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
