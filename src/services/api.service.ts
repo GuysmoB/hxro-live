@@ -48,16 +48,21 @@ export class ApiService {
         });
 
         res.on('end', () => {
-          var seriesArr = JSON.parse(arr)
-          var series = seriesArr.filter(getSeries);
-          var ret;
-          if (series[0] && 'id' in series[0]) {
-            ret = series[0].id;
-          } else {
-            ret = "[Error]: Matching series not found.";
+          try {
+            var seriesArr = JSON.parse(arr)
+            var series = seriesArr.filter(getSeries);
+            var ret;
+            if (series[0] && 'id' in series[0]) {
+              ret = series[0].id;
+            } else {
+              ret = "[Error]: Matching series not found.";
+            }
+            resolve(ret);
+          } catch (error) {
+            console.log(arr, error);
+            reject(error);
           }
 
-          resolve(ret);
         });
       });
 
@@ -134,11 +139,10 @@ export class ApiService {
     });
   }
 
-  async getActualPayout(token: string) {
+  async getActualPayout(seriesId: any) {
     let $moonPayout: any;
     let $rektPayout: any;
     let $nextPrizePool = 0;
-    const seriesId = await this.getSeriesId(token);
     const contests = await this.getContestsBySeriesId(seriesId);
 
     for (let i = 0; i < contests.length; i++) {

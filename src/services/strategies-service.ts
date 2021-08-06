@@ -3,7 +3,7 @@ import { UtilsService } from "./utils-service";
 
 export class StrategiesService extends CandleAbstract {
 
-  lookback = 5;
+  lookback = 6;
 
   constructor(private utils: UtilsService) {
     super();

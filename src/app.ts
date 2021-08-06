@@ -8,7 +8,7 @@ import { IndicatorsService } from "./services/indicators.service";
 import { CandleAbstract } from "./abstract/candleAbstract";
 import { StrategiesService } from "./services/strategies-service";
 import { UtilsService } from "./services/utils-service";
-import { Config } from "./config";
+import config, { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 import WebSocket from "ws";
@@ -26,13 +26,11 @@ class App extends CandleAbstract {
   result: any;
   obStream: any;
   snapshot: any;
-  obBuffer = {
-    bids: [],
-    asks: []
-  };
+  obBuffer = { bids: [], asks: [] };
   ohlc = [];
   haOhlc = [];
   telegramBot: any;
+  seriesId: any;
   toDataBase = false;
   databasePath = '/main';
   token = 'b15346f6544b4d289139b2feba668b20';
@@ -40,12 +38,8 @@ class App extends CandleAbstract {
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
     private indicators: IndicatorsService, private apiService: ApiService) {
     super();
-    process.title = 'main';
-    console.log('App started |', utils.getDate());
-    firebase.initializeApp(config.firebaseConfig);
-    utils.initFirebase(this.databasePath);
-    this.telegramBot = new TelegramBot(config.token, { polling: false });
-    this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
+    this.initApp();
+    //this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
 
     const init = setInterval(async () => {
       if (new Date().getSeconds() == 55) {
@@ -59,13 +53,24 @@ class App extends CandleAbstract {
     }, 1000);
   }
 
+  /**
+   * Initialisation de l'app
+   */
+  async initApp() {
+    console.log('App started |', this.utils.getDate());
+    process.title = 'main';
+    firebase.initializeApp(config.firebaseConfig);
+    this.utils.initFirebase(this.databasePath);
+    this.telegramBot = new TelegramBot(config.token, { polling: false });
+    this.seriesId = await this.apiService.getSeriesId(this.token);
+  }
 
 
   /**
    * logique principale..
    */
   async main() {
-    this.payout = await this.apiService.getActualPayout(this.token);
+    this.payout = await this.apiService.getActualPayout(this.seriesId);
     const allData = await this.apiService.getDataFromApi();
     this.ohlc = allData.data.slice();
     this.haOhlc = this.utils.setHeikenAshiData(this.ohlc);
