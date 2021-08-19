@@ -58,9 +58,7 @@ class App extends CandleAbstract {
     this.snapshot.bids = this.utils.obUpdate(obRes.bids, this.snapshot.bids);
     this.snapshot.asks = this.utils.obUpdate(obRes.asks, this.snapshot.asks); */
     /* this.snapshot.bids.sort((a, b) => b[0] - a[0]);
-    this.snapshot.asks.sort((a, b) => a[0] - b[0]);
-    this.utils.checkOb(this.snapshot.bids);//////////////////
-    this.utils.checkOb(this.snapshot.asks);////////////////// */
+    this.snapshot.asks.sort((a, b) => a[0] - b[0]);*/
 
     this.snapshot = await this.apiService.getObSnapshot();
     const bids = this.utils.convertArrayToNumber(this.snapshot[0].orderBooks[0].orderBook.bids);
