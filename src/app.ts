@@ -27,7 +27,7 @@ class App extends CandleAbstract {
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
-    //this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
+    this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
     this.main();
   }
 
@@ -37,6 +37,7 @@ class App extends CandleAbstract {
    */
   async main() {
     const init = setInterval(async () => {
+      this.manageOb();/////////////////////
       if (new Date().getSeconds() == 55) {
         clearInterval(init);
         this.manageOb();
@@ -52,22 +53,18 @@ class App extends CandleAbstract {
    * MAJ de l'ob.
    */
   async manageOb() {
-    /* const obRes = this.utils.getBidAskFromBuffer(this.tmpBuffer);
+    const obRes = this.utils.getBidAskFromBuffer(this.tmpBuffer);
     this.tmpBuffer = [];
 
     this.snapshot.bids = this.utils.obUpdate(obRes.bids, this.snapshot.bids);
-    this.snapshot.asks = this.utils.obUpdate(obRes.asks, this.snapshot.asks); */
-    /* this.snapshot.bids.sort((a, b) => b[0] - a[0]);
-    this.snapshot.asks.sort((a, b) => a[0] - b[0]);*/
+    this.snapshot.asks = this.utils.obUpdate(obRes.asks, this.snapshot.asks);
+    this.snapshot.bids.sort((a, b) => b[0] - a[0]);
+    this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
-    this.snapshot = await this.apiService.getObSnapshot();
-    const bids = this.utils.convertArrayToNumber(this.snapshot[0].orderBooks[0].orderBook.bids);
-    const asks = this.utils.convertArrayToNumber(this.snapshot[0].orderBooks[0].orderBook.asks);
-
-    const res1 = this.utils.getVolumeDepth(bids, asks, 1);
-    const res2p5 = this.utils.getVolumeDepth(bids, asks, 2.5);
-    const res5 = this.utils.getVolumeDepth(bids, asks, 5);
-    const res10 = this.utils.getVolumeDepth(bids, asks, 10);
+    const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
+    const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
+    const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
+    const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
     const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
     const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
     const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
@@ -85,15 +82,15 @@ class App extends CandleAbstract {
       'Depth   1% | Ratio% : ' + ratio1 + '\n';
 
     console.log(msg);
-    /*     console.log('ask max', Math.max(...res1.askQuantity));
-        console.log('bid max', Math.max(...res1.bidQuantity)); */
+
     if (ratio1 >= 40 || ratio2p5 >= 40 || ratio1 <= -40 || ratio2p5 <= -40) {
       //this.sendTelegramMsg(this.telegramBot, this.config.chatId, msg);
     }
 
     if (ratio1 >= 90 || ratio1 <= -90) {
       console.log('debug');
-
+      console.log('ask max', Math.max(...res1.askQuantity));
+      console.log('bid max', Math.max(...res1.bidQuantity));
     }
 
     const obj = {
@@ -107,7 +104,6 @@ class App extends CandleAbstract {
 
   /**
    * Ecoute le WS et ajuste high/low à chaque tick.
-   * https://developers.shrimpy.io/docs/#get-order-books
    */
   async getObStreamData(url: string) {
     this.snapshot = await this.apiService.getObSnapshot();
@@ -121,8 +117,7 @@ class App extends CandleAbstract {
     }
 
     ws.onmessage = function (event: any) {
-      const stream = JSON.parse(event.data);
-      _this.tmpBuffer.push(stream);
+      _this.tmpBuffer.push(JSON.parse(event.data));
     };
 
     ws.onclose = function (e) {

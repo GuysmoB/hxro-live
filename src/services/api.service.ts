@@ -124,8 +124,7 @@ export class ApiService {
     return new Promise<any>(async (resolve, reject) => {
       const fetch = require('node-fetch');
 
-      //const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=5000';
-      const url = 'https://dev-api.shrimpy.io/v1/orderbooks?exchange=binance&baseSymbol=BTC&quoteSymbol=USDT&limit=1000000';
+      const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=5000';
       const options = { method: 'GET', headers: { Accept: 'text/plain' } };
 
       fetch(url, options)
