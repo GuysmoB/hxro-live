@@ -32,25 +32,36 @@ class App extends CandleAbstract {
   telegramBot: any;
   seriesId: any;
   toDataBase = false;
-  databasePath = '/main';
+  ticker: string;
+  tf: string
+  allTickers = ['BTC', 'ETH', 'BNB'];
+  allTf = ['1', '5'];
+  databasePath: string;
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
     private indicators: IndicatorsService, private apiService: ApiService) {
     super();
+    this.ticker = process.argv.slice(2)[0];
+    this.tf = process.argv.slice(2)[1];
+    this.databasePath = '/' + this.ticker + this.tf;
     this.initApp();
-    //this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
+
 
     const init = setInterval(async () => {
-      if (new Date().getSeconds() == 55) {
-        clearInterval(init);
+      let second = new Date().getSeconds();
+      let minute = new Date().getMinutes();
+      console.log(second)
+      if (second == 55) {
+        //clearInterval(init);
         this.main();
 
-        setInterval(async () => {
-          this.main();
-        }, 60 * 1000);
+        /*  setInterval(async () => {
+           this.main();
+         }, 60 * 1000); */
       }
-    }, 1000);
+
+    }, 999);
   }
 
   /**
@@ -59,10 +70,11 @@ class App extends CandleAbstract {
   async initApp() {
     console.log('App started |', this.utils.getDate());
     process.title = 'main';
+    this.utils.checkArg(this.ticker, this.tf, this.allTickers, this.allTf);
     firebase.initializeApp(config.firebaseConfig);
     this.utils.initFirebase(this.databasePath);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
-    this.seriesId = await this.apiService.getSeriesId(this.token);
+    this.seriesId = await this.apiService.getSeriesId(this.token, this.ticker, this.tf);
   }
 
 
@@ -247,7 +259,8 @@ class App extends CandleAbstract {
   }
 
   formatTelegramMsg() {
-    return 'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
+    return this.ticker + ' ' + this.tf + 'min\n' +
+      'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
       'Payout : ' + this.result + '\n' +
       'Total R:R : ' + (this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2)) + '\n' +
       'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
