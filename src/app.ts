@@ -37,7 +37,6 @@ class App extends CandleAbstract {
    */
   async main() {
     const init = setInterval(async () => {
-      this.manageOb();/////////////////////
       if (new Date().getSeconds() == 55) {
         clearInterval(init);
         this.manageOb();
