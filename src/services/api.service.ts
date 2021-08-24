@@ -7,7 +7,7 @@ export class ApiService {
   getDataFromApi(): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
       const axios = require('axios').default;
-      const res = await axios.get("https://btc.history.hxro.io/1m");
+      const res = await axios.get('https://btc.history.hxro.io/1m');
       if (res) {
         resolve(res.data);
       } else {
@@ -17,11 +17,11 @@ export class ApiService {
   }
 
 
-  getSeriesId(token: string): Promise<any> {
+  getSeriesId(token: string, ticker: string, tf: string): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
-      const contestPair = "BTC/USD";
-      const contestDuration = "00:01:00";
-      const assetType = "USDT";
+      const contestPair = ticker + '/USD';
+      const contestDuration = '00:0' + tf + ':00';
+      const assetType = 'USDT';
       const apiToken = token;
 
       const https = require('https');
@@ -42,7 +42,7 @@ export class ApiService {
       };
 
       const req = https.request(options, (res) => {
-        var arr = "";
+        var arr = '';
         res.on('data', (part) => {
           arr += part;
         });
@@ -55,7 +55,7 @@ export class ApiService {
             if (series[0] && 'id' in series[0]) {
               ret = series[0].id;
             } else {
-              ret = "[Error]: Matching series not found.";
+              ret = '[Error]: Matching series not found.';
             }
             resolve(ret);
           } catch (error) {
@@ -89,7 +89,7 @@ export class ApiService {
     }
 
     const req = https.request(options, (res) => {
-      var arr = "";
+      var arr = '';
       res.on('data', (part) => {
         arr += part;
       });

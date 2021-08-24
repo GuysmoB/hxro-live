@@ -183,9 +183,9 @@ export class UtilsService {
   /**
    * Permet d'arrêter le processus.
    */
-  stopProcess() {
-    console.log("Process will be stopped !");
-    process.exit();
+  stopProcess(msg: string) {
+    console.error(msg)
+    process.exit(1);
   }
 
   /**
@@ -202,7 +202,14 @@ export class UtilsService {
     return (day.substr(-2) + "/" + month.substr(-2) + "/" + year + " " + hours.substr(-2) + ":" + minutes.substr(-2) + ":" + second.substr(-2));
   }
 
-
+  /**
+   * Check la validité des arguments passés à l'app.
+   */
+  checkArg(ticker: string, tf: string, allTicker: any, allTf: any) {
+    if (!allTicker.includes(ticker) || !allTf.includes(tf)) {
+      this.stopProcess('Argument error: ' + ticker + ' ' + tf);
+    }
+  }
 
   /**
    * Insert chaque trade dans Firebase.

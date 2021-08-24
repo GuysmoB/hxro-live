@@ -3,7 +3,7 @@ import { UtilsService } from "./utils-service";
 
 export class StrategiesService extends CandleAbstract {
 
-  lookback = 6;
+  lookback = 1;
 
   constructor(private utils: UtilsService) {
     super();
@@ -20,7 +20,7 @@ export class StrategiesService extends CandleAbstract {
       }
     }
 
-    if (cond && haOhlc[i].bull && rsiValues[i] < 40) {
+    if (cond && haOhlc[i].bull /* && rsiValues[i] < 40 */) {
       console.log('Entry long setup', this.utils.getDate());
       return true;
     } else {
@@ -39,7 +39,7 @@ export class StrategiesService extends CandleAbstract {
       }
     }
 
-    if (cond && haOhlc[i].bear && rsiValues[i] > 60) {
+    if (cond && haOhlc[i].bear /* && rsiValues[i] > 60 */) {
       console.log('Entry short setup', this.utils.getDate());
       return true;
     } else {
