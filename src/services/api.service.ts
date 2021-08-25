@@ -4,10 +4,10 @@ export class ApiService {
 
   constructor(private utils: UtilsService) { }
 
-  getDataFromApi(): Promise<any> {
+  getDataFromApi(url: string): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
       const axios = require('axios').default;
-      const res = await axios.get('https://btc.history.hxro.io/1m');
+      const res = await axios.get(url);
       if (res) {
         resolve(res.data);
       } else {
@@ -18,12 +18,17 @@ export class ApiService {
 
 
   getSeriesId(token: string, ticker: string, tf: string): Promise<any> {
-    return new Promise<any>(async (resolve, reject) => {
-      const contestPair = ticker + '/USD';
-      const contestDuration = '00:0' + tf + ':00';
-      const assetType = 'USDT';
-      const apiToken = token;
+    const contestDuration = '00:0' + tf + ':00';
+    const assetType = 'HXRO';
+    const apiToken = token;
+    let contestPair: string;
+    if (ticker === 'BNB') {
+      contestPair = ticker + '/USDT';
+    } else {
+      contestPair = ticker + '/USD';
+    }
 
+    return new Promise<any>(async (resolve, reject) => {
       const https = require('https');
       const options = {
         hostname: 'api.hxro.io',
@@ -125,30 +130,17 @@ export class ApiService {
   }
 
 
-  getObSnapshot() {
-    return new Promise<any>(async (resolve, reject) => {
-      const fetch = require('node-fetch');
-
-      const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=5000';
-      const options = { method: 'GET', headers: { Accept: 'text/plain' } };
-
-      fetch(url, options)
-        .then(res => res.json())
-        .then(json => resolve(json))
-        .catch(err => reject('error:' + err));
-    });
-  }
-
   async getActualPayout(seriesId: any) {
     let $moonPayout: any;
     let $rektPayout: any;
     let $nextPrizePool = 0;
+    let heroBet = 10;
     const contests = await this.getContestsBySeriesId(seriesId);
 
     for (let i = 0; i < contests.length; i++) {
       if (contests[i].status === 'Live') {
-        $moonPayout = (contests[i].rektPool / contests[i].moonPool) + 1;
-        $rektPayout = (contests[i].moonPool / contests[i].rektPool) + 1;
+        $moonPayout = (contests[i].rektPool / (contests[i].moonPool + heroBet)) + 1;
+        $rektPayout = (contests[i].moonPool / (contests[i].rektPool + heroBet)) + 1;
         $nextPrizePool = contests[i - 1].prizePool;
       }
     }

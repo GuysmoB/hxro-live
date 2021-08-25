@@ -1,11 +1,7 @@
-import { promisify } from "util";
 import firebase from "firebase";
-import fs from "fs";
-import { error } from "console";
-
 export class UtilsService {
-  constructor() { }
 
+  constructor() { }
 
   /**
    * Prend en compte les fees de Hxro
@@ -15,113 +11,14 @@ export class UtilsService {
   }
 
 
-  getVolumeDepth(snapshot: any, depth: number) {
-    const price = snapshot.bids[0][0];
-    const bidLimitDepthPrice = price - (price * (depth / 100));
-    const askLimitDepthPrice = price + (price * (depth / 100));
-    let bidResult = [];
-    let askResult = [];
-
-    for (const i in snapshot.bids) {
-      const elementPrice = snapshot.bids[i][0];
-      const elementQuantity = snapshot.bids[i][1];
-
-      if (elementPrice < bidLimitDepthPrice) {
-        break;
-      } else {
-        bidResult.push(elementQuantity);
-      }
-    }
-
-    for (const i in snapshot.asks) {
-      const elementPrice = snapshot.asks[i][0];
-      const elementQuantity = snapshot.asks[i][1];
-
-      if (elementPrice > askLimitDepthPrice) {
-        break;
-      } else {
-        askResult.push(elementQuantity);
-      }
-    }
-
-    return {
-      bidVolume: this.round(bidResult.reduce((a, b) => a + b, 0), 2),
-      askVolume: this.round(askResult.reduce((a, b) => a + b, 0), 2)
-    }
-  }
-
-  convertArrayToNumber(array: any) {
-    for (const i in array) {
-      array[i][0] = +array[i][0];
-      array[i][1] = +array[i][1];
-    }
-    return array;
-  }
 
   /**
-   * Mets à jour l'orderbook avec les données du buffer
+   * Fait la somme des nombres d'un tableau
    */
-  obUpdate(ob: Number[][], snapshot: Number[][]) {
-    for (let i = 0; i < ob.length; i++) {
-      const bPrice = ob[i][0];
-      const bQuantity = ob[i][1];
-
-      const index = snapshot.findIndex(x => x[0] == bPrice);
-      if (index >= 0) {
-        if (bQuantity == 0) {
-          snapshot.splice(index, 1);
-        } else {
-          snapshot[index][1] = bQuantity;
-        }
-      } else if (index == -1 && bQuantity != 0) {
-        snapshot.push([bPrice, bQuantity]);
-      }
-    }
-    return snapshot;
-  }
-
-  /**
- * Fait la somme des nombres d'un tableau
- */
   arraySum(array: any) {
     return array.reduce((a, b) => a + b, 0);
   }
 
-  /**
-   * Retourne la valeur maximale en fonction de la source et de lookback
-   */
-  highest(data: any, index: number, source: string, lookback: number): number {
-    let max: number;
-
-    for (let k = 0; k < lookback; k++) {
-      if (k === 0) {
-        max = data[index - k][source];
-      }
-
-      if (data[index - k][source] > max) {
-        max = data[index - k][source];
-      }
-    }
-    return max;
-  }
-
-  /**
-   * Retourne la valeur minimale en fonction de la source et de lookback
-   */
-  lowest(data: any, index: number, source: string, lookback: number): number {
-    let min: number;
-
-    for (let k = 0; k < lookback; k++) {
-      if (k === 0) {
-        min = data[index - k][source];
-      }
-
-      if (data[index - k][source] < min) {
-        min = data[index - k][source];
-      }
-    }
-    return min;
-  }
 
   /**
    * Arrondi un nombre avec une certaine précision.
@@ -139,11 +36,7 @@ export class UtilsService {
 
     for (let j = 0; j < source.length; j++) {
       if (j === 0) {
-        const _close = this.round(
-          (source[j].open + source[j].high + source[j].low + source[j].close) /
-          4,
-          5
-        );
+        const _close = this.round((source[j].open + source[j].high + source[j].low + source[j].close) / 4, 5);
         const _open = this.round((source[j].open + source[j].close) / 2, 5);
         result.push({
           close: _close,
@@ -154,23 +47,13 @@ export class UtilsService {
           bear: _close < _open,
         });
       } else {
-        const haCloseVar =
-          (source[j].open + source[j].high + source[j].low + source[j].close) /
-          4;
-        const haOpenVar =
-          (result[result.length - 1].open + result[result.length - 1].close) /
-          2;
+        const haCloseVar = (source[j].open + source[j].high + source[j].low + source[j].close) / 4;
+        const haOpenVar = (result[result.length - 1].open + result[result.length - 1].close) / 2;
         result.push({
           close: this.round(haCloseVar, 5),
           open: this.round(haOpenVar, 5),
-          low: this.round(
-            Math.min(source[j].low, Math.max(haOpenVar, haCloseVar)),
-            5
-          ),
-          high: this.round(
-            Math.max(source[j].high, Math.max(haOpenVar, haCloseVar)),
-            5
-          ),
+          low: this.round(Math.min(source[j].low, Math.max(haOpenVar, haCloseVar)), 5),
+          high: this.round(Math.max(source[j].high, Math.max(haOpenVar, haCloseVar)), 5),
           bull: haCloseVar > haOpenVar,
           bear: haCloseVar < haOpenVar,
         });
