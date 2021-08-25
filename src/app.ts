@@ -33,7 +33,7 @@ class App extends CandleAbstract {
   urlPath: string;
   delay: number;
   seuil: number;
-  toDataBase = true;
+  toDataBase = false;
   databasePath: string;
   token = 'b15346f6544b4d289139b2feba668b20';
 
