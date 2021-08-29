@@ -224,8 +224,6 @@ class App extends CandleAbstract {
    */
   stopConditions(i: number): boolean {
     return (
-      (this.inLong && this.haOhlc[i].bear) ||
-      (this.inShort && this.haOhlc[i].bull) ||
       this.looseInc == 2 ||
       this.looseInc2 == 2 ||
       Math.abs(this.high(this.ohlc, i, 0) - this.low(this.ohlc, i, 0)) > this.seuil
