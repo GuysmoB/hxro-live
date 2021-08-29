@@ -73,6 +73,7 @@ class App extends CandleAbstract {
     console.log('App started |', this.utils.getDate());
     process.title = 'main';
     this.utils.checkArg(this.ticker, this.tf, this.allTickers, this.allTf);
+    this.stratService.setStratToTicker(this.ticker);
     firebase.initializeApp(config.firebaseConfig);
     this.toDataBase ? this.utils.initFirebase(this.databasePath) : '';
     this.telegramBot = new TelegramBot(config.token, { polling: false });
@@ -225,8 +226,8 @@ class App extends CandleAbstract {
     return (
       (this.inLong && this.haOhlc[i].bear) ||
       (this.inShort && this.haOhlc[i].bull) ||
-      this.looseInc == 5 ||
-      this.looseInc2 == 5 ||
+      this.looseInc == 2 ||
+      this.looseInc2 == 2 ||
       Math.abs(this.high(this.ohlc, i, 0) - this.low(this.ohlc, i, 0)) > this.seuil
     ) ? true : false;
   }
