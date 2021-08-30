@@ -101,12 +101,14 @@ export class UtilsService {
 
     try {
       for (let i = 0; i < tmpBuffer.length; i++) {
-        const element = tmpBuffer[i];
-        const element1 = tmpBuffer[i - 1];
+        const element = tmpBuffer[i].data; //.data pourr les futurs
 
-        if (i > 1 && element.U != element1.u + 1) {
-          throw new Error('u dans le mauvais ordre chrono');
-        }
+        /* if (i > 1) {
+          const element1 = tmpBuffer[i - 1].data;
+          if (element.U != element1.u + 1) {
+            throw new Error('u dans le mauvais ordre chrono');
+          }
+        } */
         bids = [...bids, ...this.convertArrayToNumber(element.b)];
         asks = [...asks, ...this.convertArrayToNumber(element.a)];
       }

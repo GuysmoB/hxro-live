@@ -27,7 +27,8 @@ class App extends CandleAbstract {
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
-    this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms');
+    //this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms'); //spot
+    this.getObStreamData('wss://fstream.binance.com/stream?streams=btcusdt@depth'); //futurs
     this.main();
   }
 
@@ -37,15 +38,16 @@ class App extends CandleAbstract {
    */
   async main() {
     const init = setInterval(async () => {
-      if (new Date().getSeconds() == 55) {
+      this.manageOb();
+      /* if (new Date().getSeconds() == 55) {
         clearInterval(init);
         this.manageOb();
 
         setInterval(async () => {
           this.manageOb();
         }, 60 * 1000);
-      }
-    }, 1000);
+      } */
+    }, 5000);
   }
 
   /**
@@ -92,11 +94,11 @@ class App extends CandleAbstract {
       console.log('bid max', Math.max(...res1.bidQuantity));
     }
 
-    const obj = {
-      time: Date.now(), delta1: delta1, delta2p5: delta2p5, delta5: delta5, delta10: delta10,
-      ratio1: ratio1, ratio2p5: ratio2p5, ratio5: ratio5, ratio10: ratio10
-    }
-    fs.appendFileSync('./data.json', JSON.stringify(obj) + ',\n');
+    /*     const obj = {
+          time: Date.now(), delta1: delta1, delta2p5: delta2p5, delta5: delta5, delta10: delta10,
+          ratio1: ratio1, ratio2p5: ratio2p5, ratio5: ratio5, ratio10: ratio10
+        }
+        fs.appendFileSync('./data.json', JSON.stringify(obj) + ',\n'); */
   }
 
 
