@@ -67,6 +67,17 @@ export class UtilsService {
     return Math.round(value * multiplier) / multiplier;
   }
 
+
+  /**
+ * Check la validité des arguments passés à l'app.
+ */
+  checkArg(ticker: string, allTicker: any) {
+    if (!allTicker.includes(ticker)) {
+      this.stopProcess('Argument error: ' + ticker);
+    }
+  }
+
+
   /**
    * Retourne l'équivalent HeikenAshi
    */
@@ -119,9 +130,9 @@ export class UtilsService {
   /**
    * Permet d'arrêter le processus.
    */
-  stopProcess() {
-    console.log("Process will be stopped !");
-    process.exit();
+  stopProcess(msg: string) {
+    console.error(msg)
+    process.exit(1);
   }
 
   /**

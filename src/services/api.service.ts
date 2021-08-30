@@ -17,13 +17,18 @@ export class ApiService {
   }
 
 
-  getSeriesId(token: string): Promise<any> {
-    return new Promise<any>(async (resolve, reject) => {
-      const contestPair = "BTC/USD";
-      const contestDuration = "00:05:00";
-      const assetType = "USDT";
-      const apiToken = token;
+  getSeriesId(token: string, ticker: string): Promise<any> {
+    const contestDuration = '00:05:00';
+    const assetType = 'HXRO';
+    const apiToken = token;
+    let contestPair: string;
+    if (ticker === 'BNB') {
+      contestPair = ticker + '/USDT';
+    } else {
+      contestPair = ticker + '/USD';
+    }
 
+    return new Promise<any>(async (resolve, reject) => {
       const https = require('https');
       const options = {
         hostname: 'api.hxro.io',
@@ -121,17 +126,17 @@ export class ApiService {
 
 
 
-  async getActualPayout(token: string) {
+  async getActualPayout(seriesId: any) {
     let $moonPayout: any;
     let $rektPayout: any;
     let $nextPrizePool = 0;
-    const seriesId = await this.getSeriesId(token);
+    let heroBet = 10;
     const contests = await this.getContestsBySeriesId(seriesId);
 
     for (let i = 0; i < contests.length; i++) {
       if (contests[i].status === 'Live') {
-        $moonPayout = (contests[i].rektPool / contests[i].moonPool) + 1;
-        $rektPayout = (contests[i].moonPool / contests[i].rektPool) + 1;
+        $moonPayout = (contests[i].rektPool / (contests[i].moonPool + heroBet)) + 1;
+        $rektPayout = (contests[i].moonPool / (contests[i].rektPool + heroBet)) + 1;
         $nextPrizePool = contests[i - 1].prizePool;
       }
     }
@@ -145,6 +150,5 @@ export class ApiService {
       rektPayout: this.utils.round(this.utils.addFees($rektPayout) - 1, 2),
       nextPrizePool: $nextPrizePool
     };
-
   }
 }

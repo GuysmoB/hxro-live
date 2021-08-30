@@ -5,6 +5,7 @@
   "main": "dist/app.js",
   "scripts": {
     "start": "tsc && node dist/app.js",
+    "debug": "tsc && node dist/app.js BTC",
     "stop": "pkill --signal SIGINT sniper-5min",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

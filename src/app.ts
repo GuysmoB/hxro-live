@@ -8,7 +8,7 @@ import { IndicatorsService } from "./services/indicators.service";
 import { CandleAbstract } from "./abstract/candleAbstract";
 import { StrategiesService } from "./services/strategies-service";
 import { UtilsService } from "./services/utils-service";
-import { Config } from "./config";
+import config, { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 
@@ -18,25 +18,36 @@ class App extends CandleAbstract {
   loseTrades = [];
   inLong = false;
   inShort = false;
-  inPosition = false;
   payout: any;
-  second: any;
-  minute: any;
+  seriesId: any;
   telegramBot: any;
+  ticker: string;
+  allTickers = ['BTC', 'ETH', 'BNB'];
   toDataBase = false;
-  databasePath = '/sniper-5min';
-  isCountDownReset = false;
+  databasePath: string;
   token = 'b15346f6544b4d289139b2feba668b20';
-  url = 'wss://btc.data.hxro.io/live';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
     private indicators: IndicatorsService, private apiService: ApiService) {
     super();
+    this.ticker = process.argv.slice(2)[0];
+    this.databasePath = '/sniper-5min-' + this.ticker;
+    this.initApp();
+  }
+
+
+
+  /**
+   * Initialisation de l'app
+   */
+  async initApp() {
     process.title = 'sniper-5min';
-    console.log('App started |', utils.getDate());
+    console.log('App started |', this.utils.getDate());
+    this.utils.checkArg(this.ticker, this.allTickers);
     firebase.initializeApp(config.firebaseConfig);
-    utils.initFirebase(this.databasePath);
+    this.toDataBase ? this.utils.initFirebase(this.databasePath) : '';
     this.telegramBot = new TelegramBot(config.token, { polling: false });
+    this.seriesId = await this.apiService.getSeriesId(this.token, this.ticker);
     this.main();
   }
 
@@ -47,24 +58,21 @@ class App extends CandleAbstract {
    */
   async main() {
     const _this = this;
+    let lastTime: number;
 
     setInterval(async () => {
-      this.second = new Date().getSeconds();
-      this.minute = new Date().getMinutes();
+      let second = new Date().getSeconds();
+      let minute = new Date().getMinutes().toString().substr(-1);
 
-      if (this.second == 10) {
-        (this.isCountDownReset) ? this.isCountDownReset = false : '';
-      }
-
-      if (this.second == 50 && (this.minute.toString().substr(-1) == '4' || this.minute.toString().substr(-1) == '9') && !this.isCountDownReset) {
-        this.isCountDownReset = true;
-        this.payout = await _this.apiService.getActualPayout(this.token);
+      if (second == 55 && (minute == '4' || minute == '9') && second != lastTime) {
+        this.payout = await _this.apiService.getActualPayout(this.seriesId);
         if (this.payout.nextPrizePool > 200) {
           this.bullOrBear();
         } else {
           console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
         }
       }
+      lastTime = second;
     }, 500);
   }
 
@@ -74,7 +82,7 @@ class App extends CandleAbstract {
    */
   async getResult(direction: string) {
     try {
-      let ohlc = await this.apiService.getDataFromApi("https://btc.history.hxro.io/5m");
+      let ohlc = await this.apiService.getDataFromApi('https://' + this.ticker + '.history.hxro.io/5m');
       ohlc = ohlc.data.slice();
       const i = ohlc.length - 2; // candle avant la candle en cour
 
@@ -116,7 +124,6 @@ class App extends CandleAbstract {
    * Attend la prochaine candle pour update les résultats.
    */
   waitingNextCandle(direction: string) {
-    //console.log("Waiting next candle |", direction, this.utils.getDate());
     setTimeout(async () => {
       this.getResult(direction);
     }, 60000 * 5 + 30000); // 5min 30s
@@ -128,7 +135,7 @@ class App extends CandleAbstract {
    * Check for setup on closed candles
    */
   async bullOrBear() {
-    let ohlc = await this.apiService.getDataFromApi("https://btc.history.hxro.io/1m");
+    let ohlc = await this.apiService.getDataFromApi('https://' + this.ticker + '.history.hxro.io/1m');
     ohlc = ohlc.data.slice();
     const i = ohlc.length - 1;
     const haOhlc = this.utils.setHeikenAshiData(ohlc);
@@ -157,7 +164,7 @@ class App extends CandleAbstract {
   }
 
   formatTelegramMsg() {
-    return 'Snipe 5m\n' +
+    return 'Snipe ' + this.ticker + ' 5m\n' +
       'Total trades : ' + (this.winTrades.length + this.loseTrades.length) + '\n' +
       'Total R:R : ' + (this.utils.round(this.loseTrades.reduce((a, b) => a + b, 0) + this.winTrades.reduce((a, b) => a + b, 0), 2)) + '\n' +
       'Winrate : ' + (this.utils.round((this.winTrades.length / (this.loseTrades.length + this.winTrades.length)) * 100, 2) + '%');
