@@ -38,16 +38,16 @@ class App extends CandleAbstract {
    */
   async main() {
     const init = setInterval(async () => {
-      this.manageOb();
-      /* if (new Date().getSeconds() == 55) {
+
+      if (new Date().getSeconds() == 55) {
         clearInterval(init);
         this.manageOb();
 
         setInterval(async () => {
           this.manageOb();
         }, 60 * 1000);
-      } */
-    }, 5000);
+      }
+    }, 1000);
   }
 
   /**
