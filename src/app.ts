@@ -77,22 +77,18 @@ class App extends CandleAbstract {
     const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
     const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
 
-    /* const msg =
+    const msg =
       '------ ' + this.utils.getDate() + ' ------\n' +
       'Depth  10% | Ratio% : ' + ratio10 + '\n' +
       'Depth   5% | Ratio% : ' + ratio5 + '\n' +
       'Depth 2.5% | Ratio% : ' + ratio2p5 + '\n' +
       'Depth   1% | Ratio% : ' + ratio1 + '\n';
 
-    console.log(msg); */
+    console.log(msg);
 
     const allData = await this.apiService.getDataFromApi(this.urlPath);
     const res = allData.data.slice();
     const lastCandle = res[res.length - 2];
-    lastCandle.ratio1 = ratio1;
-    lastCandle.ratio2p5 = ratio2p5;
-    lastCandle.ratio5 = ratio2p5;
-    lastCandle.ratio10 = ratio10;
     try {
       await firebase.database().ref(this.databasePath).push({
         close: lastCandle.close,
