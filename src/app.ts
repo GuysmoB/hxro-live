@@ -19,6 +19,9 @@ class App extends CandleAbstract {
   snapshot: any;
   tmpBuffer = [];
   telegramBot: any;
+  urlPath = 'https://btc.history.hxro.io/1m';
+  databasePath = '/orderbook-data';
+  toDatabase = true;
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private config: Config, private apiService: ApiService) {
@@ -37,17 +40,16 @@ class App extends CandleAbstract {
    * logique principale..
    */
   async main() {
-    const init = setInterval(async () => {
+    let lastTime: number;
 
-      if (new Date().getSeconds() == 55) {
-        clearInterval(init);
+    setInterval(async () => {
+      let second = new Date().getSeconds();
+      if (second == 0 && second != lastTime) {
         this.manageOb();
-
-        setInterval(async () => {
-          this.manageOb();
-        }, 60 * 1000);
       }
-    }, 1000);
+
+      lastTime = second;
+    }, 500);
   }
 
   /**
@@ -75,30 +77,38 @@ class App extends CandleAbstract {
     const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
     const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
 
-    const msg =
+    /* const msg =
       '------ ' + this.utils.getDate() + ' ------\n' +
       'Depth  10% | Ratio% : ' + ratio10 + '\n' +
       'Depth   5% | Ratio% : ' + ratio5 + '\n' +
       'Depth 2.5% | Ratio% : ' + ratio2p5 + '\n' +
       'Depth   1% | Ratio% : ' + ratio1 + '\n';
 
-    console.log(msg);
+    console.log(msg); */
 
-    if (ratio1 >= 40 || ratio2p5 >= 40 || ratio1 <= -40 || ratio2p5 <= -40) {
-      //this.sendTelegramMsg(this.telegramBot, this.config.chatId, msg);
+    const allData = await this.apiService.getDataFromApi(this.urlPath);
+    const res = allData.data.slice();
+    const lastCandle = res[res.length - 2];
+    lastCandle.ratio1 = ratio1;
+    lastCandle.ratio2p5 = ratio2p5;
+    lastCandle.ratio5 = ratio2p5;
+    lastCandle.ratio10 = ratio10;
+    try {
+      await firebase.database().ref(this.databasePath).push({
+        close: lastCandle.close,
+        open: lastCandle.open,
+        high: lastCandle.high,
+        low: lastCandle.low,
+        time: lastCandle.time,
+        ratio1: ratio1,
+        ratio2p5: ratio2p5,
+        ratio5: ratio2p5,
+        ratio10: ratio10
+      });
+    } catch (error) {
+      console.error('error Firebase : ' + error);
     }
 
-    if (ratio1 >= 90 || ratio1 <= -90) {
-      console.log('debug');
-      console.log('ask max', Math.max(...res1.askQuantity));
-      console.log('bid max', Math.max(...res1.bidQuantity));
-    }
-
-    /*     const obj = {
-          time: Date.now(), delta1: delta1, delta2p5: delta2p5, delta5: delta5, delta10: delta10,
-          ratio1: ratio1, ratio2p5: ratio2p5, ratio5: ratio5, ratio10: ratio10
-        }
-        fs.appendFileSync('./data.json', JSON.stringify(obj) + ',\n'); */
   }
 
 

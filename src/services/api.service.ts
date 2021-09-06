@@ -4,10 +4,10 @@ export class ApiService {
 
   constructor(private utils: UtilsService) { }
 
-  getDataFromApi(): Promise<any> {
+  getDataFromApi(url: string): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
       const axios = require('axios').default;
-      const res = await axios.get("https://btc.history.hxro.io/1m");
+      const res = await axios.get(url);
       if (res) {
         resolve(res.data);
       } else {
