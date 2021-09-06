@@ -102,7 +102,7 @@ class App extends CandleAbstract {
         time: lastCandle.time,
         ratio1: ratio1,
         ratio2p5: ratio2p5,
-        ratio5: ratio2p5,
+        ratio5: ratio5,
         ratio10: ratio10
       });
     } catch (error) {
