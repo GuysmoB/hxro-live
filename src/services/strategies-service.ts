@@ -32,7 +32,7 @@ export class StrategiesService extends CandleAbstract {
   /**
    * Strat bulish
    */
-  bullStrategy(haOhlc: any, i: number, rsiValues: any): any {
+  bullStrategy(haOhlc: any, i: number, rsiValues: any, rartio1: any): any {
     let cond = true;
     for (let j = (i - 1); j >= (i - this.lookback); j--) {
       const ha = haOhlc[j];
@@ -42,7 +42,7 @@ export class StrategiesService extends CandleAbstract {
       }
     }
 
-    if (cond && haOhlc[i].bull && rsiValues[i] < this.rsiMin) {
+    if (cond && haOhlc[i].bull && rartio1 > 15) {
       console.log('Entry long setup', this.utils.getDate());
       return true;
     } else {
@@ -54,7 +54,7 @@ export class StrategiesService extends CandleAbstract {
   /**
    * Strat bearish
    */
-  bearStrategy(haOhlc: any, i: number, rsiValues: any): any {
+  bearStrategy(haOhlc: any, i: number, rsiValues: any, ratio1: any): any {
     let cond = true;
     for (let j = (i - 1); j >= (i - this.lookback); j--) {
       const ha = haOhlc[j];
@@ -64,7 +64,7 @@ export class StrategiesService extends CandleAbstract {
       }
     }
 
-    if (cond && haOhlc[i].bear && rsiValues[i] > this.rsiMax) {
+    if (cond && haOhlc[i].bear && ratio1 < -15) {
       console.log('Entry short setup', this.utils.getDate());
       return true;
     } else {

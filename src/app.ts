@@ -11,6 +11,7 @@ import { UtilsService } from "./services/utils-service";
 import config, { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
+import WebSocket from "ws";
 
 class App extends CandleAbstract {
 
@@ -27,6 +28,8 @@ class App extends CandleAbstract {
   telegramBot: any;
   seriesId: any;
   ticker: string;
+  snapshot: any;
+  tmpBuffer = [];
   tf: string
   allTickers = ['BTC', 'ETH', 'BNB'];
   allTf = ['1', '5'];
@@ -35,6 +38,7 @@ class App extends CandleAbstract {
   seuil: number;
   toDataBase = false;
   databasePath: string;
+  ratio1: any;
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private stratService: StrategiesService, private config: Config,
@@ -78,10 +82,11 @@ class App extends CandleAbstract {
     this.toDataBase ? this.utils.initFirebase(this.databasePath) : '';
     this.telegramBot = new TelegramBot(config.token, { polling: false });
     this.seriesId = await this.apiService.getSeriesId(this.token, this.ticker, this.tf);
+    this.getObStreamData('wss://fstream.binance.com/stream?streams=btcusdt@depth'); //futurs
 
     if (this.tf == '1') {
       this.delay = (60 * 1000) + (30 * 1000); //1min 30s
-      this.seuil = 80;
+      this.seuil = 200;
     } else if (this.tf == '5') {
       this.delay = (60 * 1000) * 5 + (30 * 1000); //5min 30s
       this.seuil = 250;
@@ -93,6 +98,7 @@ class App extends CandleAbstract {
    * logique principale..
    */
   async main() {
+    this.manageOb();
     this.payout = await this.apiService.getActualPayout(this.seriesId);
     const allData = await this.apiService.getDataFromApi(this.urlPath);
     this.ohlc = allData.data.slice();
@@ -100,6 +106,74 @@ class App extends CandleAbstract {
     this.bullOrBear();
   }
 
+
+  /**
+  * MAJ de l'ob.
+  */
+  async manageOb() {
+    const obRes = this.utils.getBidAskFromBuffer(this.tmpBuffer);
+    this.tmpBuffer = [];
+
+    this.snapshot.bids = this.utils.obUpdate(obRes.bids, this.snapshot.bids);
+    this.snapshot.asks = this.utils.obUpdate(obRes.asks, this.snapshot.asks);
+    this.snapshot.bids.sort((a, b) => b[0] - a[0]);
+    this.snapshot.asks.sort((a, b) => a[0] - b[0]);
+
+    const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
+    const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
+    const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
+    const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
+    const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
+    const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
+    const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
+    const delta10 = this.utils.round(res10.bidVolume - res10.askVolume, 2);
+    this.ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
+    const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
+    const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
+    const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
+
+    /*     const msg =
+          '------ ' + this.utils.getDate() + ' ------\n' +
+          'Depth  10% | Ratio% : ' + ratio10 + '\n' +
+          'Depth   5% | Ratio% : ' + ratio5 + '\n' +
+          'Depth 2.5% | Ratio% : ' + ratio2p5 + '\n' +
+          'Depth   1% | Ratio% : ' + this.ratio1 + '\n';
+    
+        console.log(msg); */
+  }
+
+
+  /**
+ * Ecoute le WS et ajuste high/low à chaque tick.
+ */
+  async getObStreamData(url: string) {
+    this.snapshot = await this.apiService.getObSnapshot();
+    this.snapshot.bids = this.utils.convertArrayToNumber(this.snapshot.bids);
+    this.snapshot.asks = this.utils.convertArrayToNumber(this.snapshot.asks);
+    let ws = new WebSocket(url);
+    const _this = this;
+
+    ws.onopen = function () {
+      console.log("Socket is connected. Listenning data ...");
+    }
+
+    ws.onmessage = function (event: any) {
+      _this.tmpBuffer.push(JSON.parse(event.data));
+    };
+
+    ws.onclose = function (e) {
+      console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+      setTimeout(function () {
+        _this.getObStreamData(url);
+      }, 1000);
+      _this.sendTelegramMsg(_this.telegramBot, _this.config.chatId, 'Reconnecting ...');
+    };
+
+    ws.onerror = function (err: any) {
+      console.error('Socket encountered error: ', err.message, 'Closing socket');
+      ws.close();
+    };
+  }
 
   /**
    * Mets à jour les resultats de trade.
@@ -186,10 +260,10 @@ class App extends CandleAbstract {
     }
 
     if (!this.inLong && !this.inShort) {
-      if (this.stratService.bullStrategy(this.haOhlc, i, rsiValues)) {
+      if (this.stratService.bullStrategy(this.haOhlc, i, rsiValues, this.ratio1)) {
         this.inLong = true;
         this.waitingNextCandle('long');
-      } else if (this.stratService.bearStrategy(this.haOhlc, i, rsiValues)) {
+      } else if (this.stratService.bearStrategy(this.haOhlc, i, rsiValues, this.ratio1)) {
         this.inShort = true;
         this.waitingNextCandle('short');
       }

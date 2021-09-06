@@ -130,6 +130,22 @@ export class ApiService {
   }
 
 
+  getObSnapshot() {
+    return new Promise<any>(async (resolve, reject) => {
+      const fetch = require('node-fetch');
+
+      //const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=5000'; //spot
+      const url = ' https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000'; //futurs
+      const options = { method: 'GET', headers: { Accept: 'text/plain' } };
+
+      fetch(url, options)
+        .then(res => res.json())
+        .then(json => resolve(json))
+        .catch(err => reject('error:' + err));
+    });
+  }
+
+
   async getActualPayout(seriesId: any) {
     let $moonPayout: any;
     let $rektPayout: any;

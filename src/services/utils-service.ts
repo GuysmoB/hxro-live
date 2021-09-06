@@ -3,6 +3,116 @@ export class UtilsService {
 
   constructor() { }
 
+
+
+  getVolumeDepth(snapshot: any, depth: number) {
+    const price = snapshot.bids[0][0];
+    const bidLimitDepthPrice = price - (price * (depth / 100));
+    const askLimitDepthPrice = price + (price * (depth / 100));
+    let bidResult = [];
+    let askResult = [];
+
+    for (const i in snapshot.bids) {
+      const elementPrice = snapshot.bids[i][0];
+      const elementQuantity = snapshot.bids[i][1];
+
+      if (elementPrice < bidLimitDepthPrice) {
+        break;
+      } else {
+        bidResult.push(elementQuantity);
+      }
+    }
+
+    for (const i in snapshot.asks) {
+      const elementPrice = snapshot.asks[i][0];
+      const elementQuantity = snapshot.asks[i][1];
+
+      if (elementPrice > askLimitDepthPrice) {
+        break;
+      } else {
+        askResult.push(elementQuantity);
+      }
+    }
+
+    return {
+      bidQuantity: bidResult,
+      bidVolume: this.round(bidResult.reduce((a, b) => a + b, 0), 2),
+      askQuantity: askResult,
+      askVolume: this.round(askResult.reduce((a, b) => a + b, 0), 2),
+
+    }
+  }
+
+
+
+  /**
+   * Convertis un tableau en []number
+   */
+  convertArrayToNumber(array: any) {
+    for (const i in array) {
+      array[i][0] = +array[i][0];
+      array[i][1] = +array[i][1];
+    }
+    return array;
+  }
+
+  /**
+   * Mets à jour l'orderbook avec les données du buffer
+   */
+  obUpdate(buffer: Number[][], snapshot: Number[][]) {
+    try {
+      for (let i = 0; i < buffer.length; i++) {
+        const price = buffer[i][0];
+        const quantity = buffer[i][1];
+
+        const index = snapshot.findIndex(x => x[0] == price);
+        if (index >= 0) {
+          if (quantity == 0) {
+            snapshot.splice(index, 1);
+          } else {
+            snapshot[index][1] = quantity;
+          }
+        } else if (index == -1 && quantity != 0) {
+          snapshot.push([price, quantity]);
+        }
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+    return snapshot;
+  }
+
+
+  /**
+   * Récupère le bid et ask depuis le buffer U = u + 1
+   */
+  getBidAskFromBuffer(tmpBuffer: any) {
+    let bids = [];
+    let asks = [];
+
+    try {
+      for (let i = 0; i < tmpBuffer.length; i++) {
+        const element = tmpBuffer[i].data; //.data pourr les futurs
+
+        /* if (i > 1) {
+          const element1 = tmpBuffer[i - 1].data;
+          if (element.U != element1.u + 1) {
+            throw new Error('u dans le mauvais ordre chrono');
+          }
+        } */
+        bids = [...bids, ...this.convertArrayToNumber(element.b)];
+        asks = [...asks, ...this.convertArrayToNumber(element.a)];
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+    return {
+      bids, asks
+    }
+  }
+
   /**
    * Prend en compte les fees de Hxro
    */
