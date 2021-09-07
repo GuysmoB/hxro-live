@@ -10,8 +10,6 @@ import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 import WebSocket from "ws";
-import * as fs from 'fs';
-
 
 class App extends CandleAbstract {
 
@@ -21,7 +19,7 @@ class App extends CandleAbstract {
   telegramBot: any;
   urlPath = 'https://btc.history.hxro.io/1m';
   databasePath = '/orderbook-data';
-  toDatabase = true;
+  toDatabase = false;
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private config: Config, private apiService: ApiService) {
@@ -44,7 +42,7 @@ class App extends CandleAbstract {
 
     setInterval(async () => {
       let second = new Date().getSeconds();
-      if (second == 0 && second != lastTime) {
+      if (second == 1 && second != lastTime) {
         this.manageOb();
       }
 
@@ -90,7 +88,7 @@ class App extends CandleAbstract {
     const res = allData.data.slice();
     const lastCandle = res[res.length - 2];
     try {
-      await firebase.database().ref(this.databasePath).push({
+      this.toDatabase ? await firebase.database().ref(this.databasePath).push({
         close: lastCandle.close,
         open: lastCandle.open,
         high: lastCandle.high,
@@ -100,11 +98,10 @@ class App extends CandleAbstract {
         ratio2p5: ratio2p5,
         ratio5: ratio5,
         ratio10: ratio10
-      });
+      }) : '';
     } catch (error) {
       console.error('error Firebase : ' + error);
     }
-
   }
 
 

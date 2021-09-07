@@ -109,15 +109,16 @@ export class UtilsService {
             throw new Error('u dans le mauvais ordre chrono');
           }
         } */
-        bids = [...bids, ...this.convertArrayToNumber(element.b)];
-        asks = [...asks, ...this.convertArrayToNumber(element.a)];
+        bids = [...bids, ...element.b];
+        asks = [...asks, ...element.a];
       }
     } catch (error) {
       console.log(error);
     }
 
     return {
-      bids, asks
+      bids: this.convertArrayToNumber(bids),
+      asks: this.convertArrayToNumber(asks),
     }
   }
 
