@@ -83,6 +83,8 @@ class App extends CandleAbstract {
       'Depth   1% | Ratio% : ' + ratio1 + '\n';
 
     console.log(msg);
+    console.log('Snapshot bids size : ', this.snapshot.bids.length)
+    console.log('Snapshot asks size : ', this.snapshot.asks.length)
 
     const allData = await this.apiService.getDataFromApi(this.urlPath);
     const res = allData.data.slice();

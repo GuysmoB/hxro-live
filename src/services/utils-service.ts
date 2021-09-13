@@ -67,7 +67,11 @@ export class UtilsService {
   /**
    * Mets à jour l'orderbook avec les données du buffer
    */
-  obUpdate(buffer: Number[][], snapshot: Number[][]) {
+  obUpdate(buffer: any[][], snapshot: any[][]) {
+    const price = snapshot[0][0];
+    const bidLimitDepthPrice = price - (price * (10 / 100));
+    const askLimitDepthPrice = price + (price * (10 / 100));
+
     try {
       for (let i = 0; i < buffer.length; i++) {
         const price = buffer[i][0];
@@ -82,6 +86,14 @@ export class UtilsService {
           }
         } else if (index == -1 && quantity != 0) {
           snapshot.push([price, quantity]);
+        }
+      }
+
+      for (let i = 0; i < snapshot.length; i++) {
+        const price = snapshot[i][0];
+
+        if (price <= bidLimitDepthPrice || price >= askLimitDepthPrice) {
+          snapshot.splice(i, 1);
         }
       }
     } catch (error) {
