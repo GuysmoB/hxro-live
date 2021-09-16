@@ -64,27 +64,28 @@ class App extends CandleAbstract {
 
     const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
     const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
-    const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
-    const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
+    /* const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
+    const res10 = this.utils.getVolumeDepth(this.snapshot, 10); */
     const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
     const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
-    const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
-    const delta10 = this.utils.round(res10.bidVolume - res10.askVolume, 2);
+    /* const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
+    const delta10 = this.utils.round(res10.bidVolume - res10.askVolume, 2); */
     const ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
     const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
-    const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
-    const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
+    /* const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
+    const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2); */
 
     const msg =
       '------ ' + this.utils.getDate() + ' ------\n' +
-      'Depth  10% | Ratio% : ' + ratio10 + '\n' +
-      'Depth   5% | Ratio% : ' + ratio5 + '\n' +
+      /* 'Depth  10% | Ratio% : ' + ratio10 + '\n' +
+      'Depth   5% | Ratio% : ' + ratio5 + '\n' + */
       'Depth 2.5% | Ratio% : ' + ratio2p5 + '\n' +
-      'Depth   1% | Ratio% : ' + ratio1 + '\n';
+      'Depth   1% | Ratio% : ' + ratio1 + '\n' +
+      'Snapshot asks size : ' + this.snapshot.asks.length + '\n' +
+      'Snapshot bids size : ' + this.snapshot.bids.length + '\n';
+
 
     console.log(msg);
-    console.log('Snapshot bids size : ', this.snapshot.bids.length)
-    console.log('Snapshot asks size : ', this.snapshot.asks.length)
 
     const allData = await this.apiService.getDataFromApi(this.urlPath);
     const res = allData.data.slice();
@@ -98,8 +99,8 @@ class App extends CandleAbstract {
         time: lastCandle.time,
         ratio1: ratio1,
         ratio2p5: ratio2p5,
-        ratio5: ratio5,
-        ratio10: ratio10
+        /* ratio5: ratio5,
+        ratio10: ratio10 */
       }) : '';
     } catch (error) {
       console.error('error Firebase : ' + error);
