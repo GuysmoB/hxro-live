@@ -1,7 +1,4 @@
-import { promisify } from "util";
 import firebase from "firebase";
-import fs from "fs";
-import { error } from "console";
 
 export class UtilsService {
   constructor() { }
@@ -14,7 +11,116 @@ export class UtilsService {
     return gain - (gain * 0.03)
   }
 
+  getVolumeDepth(snapshot: any, depth: number) {
+    const price = snapshot.bids[0][0];
+    const bidLimitDepthPrice = price - (price * (depth / 100));
+    const askLimitDepthPrice = price + (price * (depth / 100));
+    let bidResult = [];
+    let askResult = [];
 
+    for (const i in snapshot.bids) {
+      const elementPrice = snapshot.bids[i][0];
+      const elementQuantity = snapshot.bids[i][1];
+
+      if (elementPrice < bidLimitDepthPrice) {
+        break;
+      } else {
+        bidResult.push(elementQuantity);
+      }
+    }
+
+    for (const i in snapshot.asks) {
+      const elementPrice = snapshot.asks[i][0];
+      const elementQuantity = snapshot.asks[i][1];
+
+      if (elementPrice > askLimitDepthPrice) {
+        break;
+      } else {
+        askResult.push(elementQuantity);
+      }
+    }
+
+    return {
+      bidQuantity: bidResult,
+      bidVolume: this.round(bidResult.reduce((a, b) => a + b, 0), 2),
+      askQuantity: askResult,
+      askVolume: this.round(askResult.reduce((a, b) => a + b, 0), 2),
+
+    }
+  }
+
+  /**
+   * Convertis un tableau en []number
+   */
+  convertArrayToNumber(array: any) {
+    for (const i in array) {
+      array[i][0] = +array[i][0];
+      array[i][1] = +array[i][1];
+    }
+    return array;
+  }
+
+  /**
+   * Mets à jour l'orderbook avec les données du buffer
+   */
+  obUpdate(buffer: any[][], snapshot: any[][]) {
+    const price = snapshot[0][0];
+    const bidLimitDepthPrice = price - (price * (2.5 / 100));
+    const askLimitDepthPrice = price + (price * (2.5 / 100));
+
+    try {
+      for (let i = 0; i < buffer.length; i++) {
+        const price = buffer[i][0];
+        const quantity = buffer[i][1];
+
+        const index = snapshot.findIndex(x => x[0] == price);
+        if (index >= 0) {
+          if (quantity == 0) {
+            snapshot.splice(index, 1);
+          } else {
+            snapshot[index][1] = quantity;
+          }
+        } else if (index == -1 && quantity != 0) {
+          snapshot.push([price, quantity]);
+        }
+      }
+
+      for (let i = snapshot.length - 1; i >= 0; i--) {
+        const price = snapshot[i][0];
+        if (price <= bidLimitDepthPrice || price >= askLimitDepthPrice) {
+          snapshot.splice(i, 1);
+        }
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+    return snapshot;
+  }
+
+
+  /**
+   * Récupère le bid et ask depuis le buffer U = u + 1
+   */
+  getBidAskFromBuffer(tmpBuffer: any) {
+    let bids = [];
+    let asks = [];
+
+    try {
+      for (let i = 0; i < tmpBuffer.length; i++) {
+        const element = tmpBuffer[i].data; //.data pourr les futurs
+        bids = [...bids, ...element.b];
+        asks = [...asks, ...element.a];
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+    return {
+      bids: this.convertArrayToNumber(bids),
+      asks: this.convertArrayToNumber(asks),
+    }
+  }
 
   /**
  * Fait la somme des nombres d'un tableau

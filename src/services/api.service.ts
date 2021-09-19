@@ -4,6 +4,21 @@ export class ApiService {
 
   constructor(private utils: UtilsService) { }
 
+  getObSnapshot() {
+    return new Promise<any>(async (resolve, reject) => {
+      const fetch = require('node-fetch');
+
+      //const url = 'https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=5000'; //spot
+      const url = ' https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=1000'; //futurs
+      const options = { method: 'GET', headers: { Accept: 'text/plain' } };
+
+      fetch(url, options)
+        .then(res => res.json())
+        .then(json => resolve(json))
+        .catch(err => reject('error:' + err));
+    });
+  }
+
   getDataFromApi(url: string): Promise<any> {
     return new Promise<any>(async (resolve, reject) => {
       const axios = require('axios').default;

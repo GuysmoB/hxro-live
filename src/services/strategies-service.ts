@@ -8,8 +8,8 @@ export class StrategiesService extends CandleAbstract {
   }
 
 
-  bullStrategy(haOhlc: any, i: number, rsiValues: any): any {
-    if (rsiValues[i] < 35) {
+  bullStrategy(i: number, rsiValues: any, ratio): any {
+    if (rsiValues[i] < 40 && ratio > 20) {
       console.log('Entry bull setup', this.utils.getDate());
       return true;
     } else {
@@ -18,8 +18,8 @@ export class StrategiesService extends CandleAbstract {
   }
 
 
-  bearStrategy(haOhlc: any, i: number, rsiValues: any): any {
-    if (rsiValues[i] > 65) {
+  bearStrategy(i: number, rsiValues: any, ratio): any {
+    if (rsiValues[i] > 60 && ratio < -20) {
       console.log('Entry bear setup', this.utils.getDate());
       return true;
     } else {
