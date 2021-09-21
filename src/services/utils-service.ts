@@ -1,8 +1,10 @@
 import firebase from "firebase";
 
 export class UtilsService {
-  constructor() { }
 
+  subscription: PushSubscription;
+
+  constructor() { }
 
   /**
    * Prend en compte les fees de Hxro
@@ -177,9 +179,9 @@ export class UtilsService {
   /**
  * Check la validité des arguments passés à l'app.
  */
-  checkArg(ticker: string, allTicker: any) {
-    if (!allTicker.includes(ticker)) {
-      this.stopProcess('Argument error: ' + ticker);
+  checkArg(ticker: string, tf: string, allTicker: any, allTf: any) {
+    if (!allTicker.includes(ticker) || !allTf.includes(tf)) {
+      this.stopProcess('Argument error: ' + ticker + ' ' + tf);
     }
   }
 
@@ -309,6 +311,23 @@ export class UtilsService {
     try {
       let snapshot = await firebase.database().ref(databasePath).once('value');
       if (snapshot.exists()) {
+        const id = Object.keys(snapshot.val())[0];
+        return snapshot.child(id).val();
+      }
+    } catch (error) {
+      console.error(error);
+    }
+    return undefined;
+  }
+
+  /**
+  * Récupère les resultats depuis Firebase.
+  */
+  async getLastOrderbookValue(databasePath: string) {
+    try {
+      let snapshot = await firebase.database().ref(databasePath).orderByKey().limitToLast(1).once('value');
+      if (snapshot.exists()) {
+        //console.log(snapshot.val())
         const id = Object.keys(snapshot.val())[0];
         return snapshot.child(id).val();
       }

@@ -32,8 +32,11 @@ export class ApiService {
   }
 
 
-  getSeriesId(token: string, ticker: string): Promise<any> {
-    const contestDuration = '00:05:00';
+  getSeriesId(token: string, ticker: string, tf: string): Promise<any> {
+    if (tf.length == 1) {
+      tf = '0' + tf;
+    }
+    const contestDuration = '00:' + tf + ':00';
     const assetType = 'HXRO';
     const apiToken = token;
     let contestPair: string;
@@ -62,22 +65,27 @@ export class ApiService {
       };
 
       const req = https.request(options, (res) => {
-        var arr = "";
+        var arr = '';
         res.on('data', (part) => {
           arr += part;
         });
 
         res.on('end', () => {
-          var seriesArr = JSON.parse(arr)
-          var series = seriesArr.filter(getSeries);
-          var ret;
-          if (series[0] && 'id' in series[0]) {
-            ret = series[0].id;
-          } else {
-            ret = "[Error]: Matching series not found.";
+          try {
+            var seriesArr = JSON.parse(arr)
+            var series = seriesArr.filter(getSeries);
+            var ret;
+            if (series[0] && 'id' in series[0]) {
+              ret = series[0].id;
+            } else {
+              ret = '[Error]: Matching series not found.';
+            }
+            resolve(ret);
+          } catch (error) {
+            console.log(arr, error);
+            reject(error);
           }
 
-          resolve(ret);
         });
       });
 
