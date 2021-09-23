@@ -62,17 +62,25 @@ class App extends CandleAbstract {
     this.snapshot.bids.sort((a, b) => b[0] - a[0]);
     this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
+    const resp025 = this.utils.getVolumeDepth(this.snapshot, 0.25);
+    const resp05 = this.utils.getVolumeDepth(this.snapshot, 0.5);
     const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
     const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
+    const deltap025 = this.utils.round(resp025.bidVolume - resp025.askVolume, 2);
+    const deltap05 = this.utils.round(resp05.bidVolume - resp05.askVolume, 2);
     const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
     const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
+    const ratiop025 = this.utils.round((deltap025 / (resp025.bidVolume + resp025.askVolume)) * 100, 2);
+    const ratiop05 = this.utils.round((deltap05 / (resp05.bidVolume + resp05.askVolume)) * 100, 2);
     const ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
     const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
 
     console.log(
       '------ ' + this.utils.getDate() + ' ------\n' +
-      'Depth 2.5% | Ratio% : ' + ratio2p5 + '\n' +
-      'Depth   1% | Ratio% : ' + ratio1 + '\n'+
+      'Depth  2.5% | Ratio% : ' + ratio2p5 + '\n' +
+      'Depth    1% | Ratio% : ' + ratio1 + '\n'+
+      'Depth  0.5% | Ratio% : ' + ratiop05 + '\n'+
+      'Depth 0.25% | Ratio% : ' + ratiop025 + '\n'+
       'Snapshot bids size : '+ this.snapshot.bids.length+ '\n' +
       'Snapshot asks size : '+ this.snapshot.asks.length+ '\n'
     );
@@ -89,6 +97,8 @@ class App extends CandleAbstract {
           high: lastCandle.high,
           low: lastCandle.low,
           time: lastCandle.time,
+          ratiop025: ratiop025,
+          ratiop05: ratiop05,
           ratio1: ratio1,
           ratio2p5: ratio2p5
         }) : '';
