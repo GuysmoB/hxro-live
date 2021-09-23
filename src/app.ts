@@ -24,7 +24,6 @@ class App extends CandleAbstract {
   telegramBot: any;
   ticker: string;
   tf: string
-  ratio2p5: number;
   allTickers = ['BTC', 'ETH', 'BNB'];
   allTf = ['1', '5', '15'];
   obDatabasePath = '/orderbook-data';
@@ -73,29 +72,11 @@ class App extends CandleAbstract {
       if (second != lastTime) {
         this.payout = await _this.apiService.getActualPayout(this.seriesId);
 
-        if (this.tf == '5') {
-          if (second == 55 && (minute == 4 || minute == 9)) {
-            if (this.payout.nextPrizePool > 200) {
-              this.bullOrBear();
-            } else {
-              console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
-            }
-          }
-        } else if (this.tf == '15') {
-          if (second == 55 && (minute == 14 || minute == 29 || minute == 44 || minute == 59)) {
-            if (this.payout.nextPrizePool > 500) {
-              this.bullOrBear();
-            } else {
-              console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
-            }
-          }
-        } else {
-          if (second == 55) {
-            if (this.payout.nextPrizePool > 100) {
-              this.bullOrBear();
-            } else {
-              console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
-            }
+        if (this.utils.isTimeMatchingTf(this.tf, minute, second)) {
+          if (this.payout.nextPrizePool > (this.payout.currentPrizePool*0.5)) {
+            this.bullOrBear();
+          } else {
+            console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
           }
         }
       }
@@ -111,7 +92,6 @@ class App extends CandleAbstract {
    */
   async bullOrBear() {
     const res = await this.utils.getLastOrderbookValue(this.obDatabasePath);
-    this.ratio2p5 = res.ratio2p5;
     let ohlc = await this.apiService.getDataFromApi('https://' + this.ticker + '.history.hxro.io/1m');
     ohlc = ohlc.data.slice();
     const i = ohlc.length - 1;
@@ -119,10 +99,10 @@ class App extends CandleAbstract {
     const rsiValues = this.indicators.rsi(ohlc, 14);
 
     if (!this.inLong && !this.inShort) {
-      if (this.stratService.bullStrategy(i, rsiValues, this.ratio2p5)) {
+      if (this.stratService.bullStrategy(i, rsiValues, res.ratio2p5)) {
         this.inLong = true;
         this.waitingNextCandle('long');
-      } else if (this.stratService.bearStrategy(i, rsiValues, this.ratio2p5)) {
+      } else if (this.stratService.bearStrategy(i, rsiValues, res.ratio2p5)) {
         this.inShort = true;
         this.waitingNextCandle('short');
       }

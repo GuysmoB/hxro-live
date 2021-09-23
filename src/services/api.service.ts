@@ -153,6 +153,7 @@ export class ApiService {
     let $moonPayout: any;
     let $rektPayout: any;
     let $nextPrizePool = 0;
+    let $currentPrizePool = 0;
     let heroBet = 10;
     const contests = await this.getContestsBySeriesId(seriesId);
 
@@ -161,6 +162,7 @@ export class ApiService {
         $moonPayout = (contests[i].rektPool / (contests[i].moonPool + heroBet)) + 1;
         $rektPayout = (contests[i].moonPool / (contests[i].rektPool + heroBet)) + 1;
         $nextPrizePool = contests[i - 1].prizePool;
+        $currentPrizePool = contests[i].prizePool;
       }
     }
 
@@ -171,7 +173,8 @@ export class ApiService {
     return {
       moonPayout: this.utils.round(this.utils.addFees($moonPayout) - 1, 2),
       rektPayout: this.utils.round(this.utils.addFees($rektPayout) - 1, 2),
-      nextPrizePool: $nextPrizePool
+      nextPrizePool: $nextPrizePool,
+      currentPrizePool: $currentPrizePool
     };
   }
 }
