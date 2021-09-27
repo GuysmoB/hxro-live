@@ -125,6 +125,17 @@ export class UtilsService {
   }
 
   /**
+   * Vérifis si la candle correspond à la TF
+   */
+  isTimeMatchingTf(tf: any, minute: number, second: any) {
+    return (
+      (tf == 5 && (minute.toString().substr(-1) == '4' || minute.toString().substr(-1) == '9') && second == 55) ||
+      (tf == 15 && (minute == 14 || minute == 29 || minute == 44 || minute == 59) && second == 55) ||
+      (tf == 1  && second == 55)
+    ) ? true : false;
+  }
+
+  /**
  * Fait la somme des nombres d'un tableau
  */
   arraySum(array: any) {
