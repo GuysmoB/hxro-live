@@ -89,7 +89,7 @@ class App extends CandleAbstract {
               console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
             }
           }
-        } else {
+        } else if (this.tf == '1') {
           if (second == 55) {
             if (this.payout.nextPrizePool > 100) {
               this.bullOrBear();
@@ -111,7 +111,6 @@ class App extends CandleAbstract {
    */
   async bullOrBear() {
     const res = await this.utils.getLastOrderbookValue(this.obDatabasePath);
-    this.ratio2p5 = res.ratio2p5;
     let ohlc = await this.apiService.getDataFromApi('https://' + this.ticker + '.history.hxro.io/1m');
     ohlc = ohlc.data.slice();
     const i = ohlc.length - 1;
@@ -119,10 +118,10 @@ class App extends CandleAbstract {
     const rsiValues = this.indicators.rsi(ohlc, 14);
 
     if (!this.inLong && !this.inShort) {
-      if (this.stratService.bullStrategy(i, rsiValues, this.ratio2p5)) {
+      if (this.stratService.bullStrategy(haOhlc, i, rsiValues, res.ratio1)) {
         this.inLong = true;
         this.waitingNextCandle('long');
-      } else if (this.stratService.bearStrategy(i, rsiValues, this.ratio2p5)) {
+      } else if (this.stratService.bearStrategy(haOhlc, i, rsiValues, res.ratio1)) {
         this.inShort = true;
         this.waitingNextCandle('short');
       }
