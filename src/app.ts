@@ -69,15 +69,13 @@ class App extends CandleAbstract {
       let second = new Date().getSeconds();
       let minute = new Date().getMinutes();
 
-      if (second != lastTime) {
+      if (this.utils.isTimeMatchingTf(this.tf, minute, second) && second != lastTime) {
         this.payout = await _this.apiService.getActualPayout(this.seriesId);
 
-        if (this.utils.isTimeMatchingTf(this.tf, minute, second)) {
-          if (this.payout.nextPrizePool > (this.payout.currentPrizePool * 0.5)) {
-            this.bullOrBear();
-          } else {
-            console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
-          }
+        if (this.payout.nextPrizePool > (this.payout.currentPrizePool * 0.5)) {
+          this.bullOrBear();
+        } else {
+          console.log('nextPrizePool', this.payout.nextPrizePool, _this.utils.getDate())
         }
       }
 
@@ -114,18 +112,9 @@ class App extends CandleAbstract {
    * Attend la prochaine candle pour update les résultats.
    */
   waitingNextCandle(direction: string) {
-    let delay: number
-    if (this.tf == '1') {
-      delay = (60 * 1000) + (30 * 1000); //1min 30s
-    } else if (this.tf == '5') {
-      delay = (60 * 1000) * 5 + (30 * 1000); //5min 30s
-    } else if (this.tf == '15') {
-      delay = (60 * 1000) * 15 + (30 * 1000); //15min 30s
-    }
-
     setTimeout(async () => {
       this.getResult(direction);
-    }, delay);
+    }, (60 * 1000) * (+this.tf) + (30 * 1000)); // TF + 30 sec
   }
 
 

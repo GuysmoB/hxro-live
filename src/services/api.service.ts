@@ -155,15 +155,19 @@ export class ApiService {
     let $nextPrizePool = 0;
     let $currentPrizePool = 0;
     let heroBet = 10;
-    const contests = await this.getContestsBySeriesId(seriesId);
 
-    for (let i = 0; i < contests.length; i++) {
-      if (contests[i].status === 'Live') {
-        $moonPayout = (contests[i].rektPool / (contests[i].moonPool + heroBet)) + 1;
-        $rektPayout = (contests[i].moonPool / (contests[i].rektPool + heroBet)) + 1;
-        $nextPrizePool = contests[i - 1].prizePool;
-        $currentPrizePool = contests[i].prizePool;
+    try {
+      const contests = await this.getContestsBySeriesId(seriesId);
+      for (let i = 0; i < contests.length; i++) {
+        if (contests[i].status === 'Live') {
+          $moonPayout = (contests[i].rektPool / (contests[i].moonPool + heroBet)) + 1;
+          $rektPayout = (contests[i].moonPool / (contests[i].rektPool + heroBet)) + 1;
+          $nextPrizePool = contests[i - 1].prizePool;
+          $currentPrizePool = contests[i].prizePool;
+        }
       }
+    } catch (error) {
+      console.log('getActualPayout() : ', error);
     }
 
     if ($moonPayout == undefined || $rektPayout == undefined) {
