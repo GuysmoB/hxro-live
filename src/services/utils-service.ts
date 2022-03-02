@@ -69,8 +69,8 @@ export class UtilsService {
    */
   obUpdate(buffer: any[][], snapshot: any[][]) {
     const price = snapshot[0][0];
-    const bidLimitDepthPrice = price - (price * (2.5 / 100));
-    const askLimitDepthPrice = price + (price * (2.5 / 100));
+    const bidLimitDepthPrice = price - (price * (10 / 100));
+    const askLimitDepthPrice = price + (price * (10 / 100));
 
     try {
       for (let i = 0; i < buffer.length; i++) {
@@ -106,20 +106,19 @@ export class UtilsService {
   /**
    * Récupère le bid et ask depuis le buffer U = u + 1
    */
-  getBidAskFromBuffer(tmpBuffer: any) {
+  getBidAskFromBuffer(tmpBuffer: any, isSpot: boolean) {
     let bids = [];
     let asks = [];
 
     try {
       for (let i = 0; i < tmpBuffer.length; i++) {
-        const element = tmpBuffer[i].data; //.data pourr les futurs
-
-        /* if (i > 1) {
-          const element1 = tmpBuffer[i - 1].data;
-          if (element.U != element1.u + 1) {
-            throw new Error('u dans le mauvais ordre chrono');
-          }
-        } */
+        let element: any;
+        if (isSpot) {
+          element = tmpBuffer[i];
+        } else {
+          element = tmpBuffer[i].data;
+        }
+       
         bids = [...bids, ...element.b];
         asks = [...asks, ...element.a];
       }

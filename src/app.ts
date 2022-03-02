@@ -13,6 +13,7 @@ import WebSocket from "ws";
 
 class App extends CandleAbstract {
 
+  isSpot: true;
   obStream: any;
   snapshot: any;
   tmpBuffer = [];
@@ -28,8 +29,12 @@ class App extends CandleAbstract {
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
-    //this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms'); //spot
-    this.getObStreamData('wss://fstream.binance.com/stream?streams=btcusdt@depth'); //futurs
+
+    if (this.isSpot) {
+      this.getObStreamData('wss://stream.binance.com:9443/ws/btcusdt@depth@1000ms'); //spot
+    } else {
+      this.getObStreamData('wss://fstream.binance.com/stream?streams=btcusdt@depth'); //futurs
+    }
     this.main();
   }
 
@@ -54,7 +59,7 @@ class App extends CandleAbstract {
    * MAJ de l'ob.
    */
   async manageOb() {
-    const obRes = this.utils.getBidAskFromBuffer(this.tmpBuffer);
+    const obRes = this.utils.getBidAskFromBuffer(this.tmpBuffer, this.isSpot);
     this.tmpBuffer = [];
 
     this.snapshot.bids = this.utils.obUpdate(obRes.bids, this.snapshot.bids);
@@ -62,25 +67,26 @@ class App extends CandleAbstract {
     this.snapshot.bids.sort((a, b) => b[0] - a[0]);
     this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
-    const resp025 = this.utils.getVolumeDepth(this.snapshot, 0.25);
-    const resp05 = this.utils.getVolumeDepth(this.snapshot, 0.5);
+
     const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
     const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
-    const deltap025 = this.utils.round(resp025.bidVolume - resp025.askVolume, 2);
-    const deltap05 = this.utils.round(resp05.bidVolume - resp05.askVolume, 2);
+    const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
+    const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
     const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
     const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
-    const ratiop025 = this.utils.round((deltap025 / (resp025.bidVolume + resp025.askVolume)) * 100, 2);
-    const ratiop05 = this.utils.round((deltap05 / (resp05.bidVolume + resp05.askVolume)) * 100, 2);
+    const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
+    const delta10 = this.utils.round(res10.bidVolume - res10.askVolume, 2);
     const ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
     const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
+    const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
+    const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
 
     console.log(
       '------ ' + this.utils.getDate() + ' ------\n' +
+      'Depth   10% | Ratio% : ' + ratio10 + '\n' +
+      'Depth    5% | Ratio% : ' + ratio5 + '\n' +
       'Depth  2.5% | Ratio% : ' + ratio2p5 + '\n' +
       'Depth    1% | Ratio% : ' + ratio1 + '\n'+
-      'Depth  0.5% | Ratio% : ' + ratiop05 + '\n'+
-      'Depth 0.25% | Ratio% : ' + ratiop025 + '\n'+
       'Snapshot bids size : '+ this.snapshot.bids.length+ '\n' +
       'Snapshot asks size : '+ this.snapshot.asks.length+ '\n'
     );
@@ -97,8 +103,6 @@ class App extends CandleAbstract {
           high: lastCandle.high,
           low: lastCandle.low,
           time: lastCandle.time,
-          ratiop025: ratiop025,
-          ratiop05: ratiop05,
           ratio1: ratio1,
           ratio2p5: ratio2p5
         }) : '';
@@ -114,7 +118,7 @@ class App extends CandleAbstract {
    * Ecoute le WS et ajuste high/low à chaque tick.
    */
   async getObStreamData(url: string) {
-    this.snapshot = await this.apiService.getObSnapshot();
+    this.snapshot = await this.apiService.getObSnapshot(this.isSpot);
     this.snapshot.bids = this.utils.convertArrayToNumber(this.snapshot.bids);
     this.snapshot.asks = this.utils.convertArrayToNumber(this.snapshot.asks);
     let ws = new WebSocket(url);
