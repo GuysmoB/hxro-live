@@ -10,6 +10,7 @@ import { Config } from "./config";
 import firebase from "firebase";
 import TelegramBot from "node-telegram-bot-api";
 import WebSocket from "ws";
+import { IndicatorsService } from './services/indicators.service';
 
 class App extends CandleAbstract {
 
@@ -17,13 +18,14 @@ class App extends CandleAbstract {
   obStream: any;
   snapshot: any;
   tmpBuffer = [];
+  ohlc = [];
   telegramBot: any;
   urlPath = 'https://btc.history.hxro.io/1m';
   databasePath = '/orderbook-data';
   toDatabase = false;
   token = 'b15346f6544b4d289139b2feba668b20';
 
-  constructor(private utils: UtilsService, private config: Config, private apiService: ApiService) {
+  constructor(private utils: UtilsService, private config: Config, private apiService: ApiService, private indicators: IndicatorsService) {
     super();
     process.title = 'orderbook-data';
     console.log('App started |', utils.getDate());
@@ -81,23 +83,18 @@ class App extends CandleAbstract {
     const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
     const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
 
-    console.log(
-      '------ ' + this.utils.getDate() + ' ------\n' +
-      'Depth   10% | Ratio% : ' + ratio10 + '\n' +
-      'Depth    5% | Ratio% : ' + ratio5 + '\n' +
-      'Depth  2.5% | Ratio% : ' + ratio2p5 + '\n' +
-      'Depth    1% | Ratio% : ' + ratio1 + '\n'+
-      'Snapshot bids size : '+ this.snapshot.bids.length+ '\n' +
-      'Snapshot asks size : '+ this.snapshot.asks.length+ '\n'
-    );
-
     try {
+      let rsi1 = [];
+      let rsi2p5 = [];
+
       setTimeout(async () => {
         const allData = await this.apiService.getDataFromApi(this.urlPath);
         const res = allData.data.slice();
         const lastCandle = res[res.length - 2];
-    
-        this.toDatabase ? await firebase.database().ref(this.databasePath).push({
+        rsi1 = this.indicators.rsi(this.ohlc, 5, "ratio1");
+        rsi2p5 = this.indicators.rsi(this.ohlc, 5, "ratio2p5");
+
+        this.ohlc.push({
           close: lastCandle.close,
           open: lastCandle.open,
           high: lastCandle.high,
@@ -105,8 +102,20 @@ class App extends CandleAbstract {
           time: lastCandle.time,
           ratio1: ratio1,
           ratio2p5: ratio2p5
-        }) : '';
+        });
+
+        this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
       }, 10*1000);
+
+      console.log(
+        `------   ${this.utils.getDate()}  ------\n`+
+        `Depth   10% | Ratio% :  ${ratio10}\n`+
+        `Depth    5% | Ratio% :  ${ratio5}\n`+
+        `Depth  2.5% | Ratio% :  ${ratio2p5} | RSI : ${rsi2p5[rsi2p5.length - 1]}\n`+
+        `Depth    1% | Ratio% :  ${ratio1} | RSI : ${rsi1[rsi1.length - 1]}\n`+
+        `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
+        `Snapshot asks size :  ${this.snapshot.asks.length}\n`
+      ); 
     } catch (error) {
       console.error('error Firebase : ' + error);
     }
@@ -163,5 +172,6 @@ const utilsService = new UtilsService();
 new App(
   utilsService,
   new Config(),
-  new ApiService(utilsService)
+  new ApiService(utilsService),
+  new IndicatorsService(utilsService),
 );

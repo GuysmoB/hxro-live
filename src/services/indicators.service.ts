@@ -75,10 +75,10 @@ export class IndicatorsService extends CandleAbstract {
     return result;
   }
 
-  rsi(candlesticks: any, window: number): any {
+  rsi(candlesticks: any, window: number, source: string): any {
     const $close = [];
     for (let j = 0; j < candlesticks.length; j++) {
-      $close.push(candlesticks[j].close);
+      $close.push(candlesticks[j][source]);
     }
 
     const gains = [0];
