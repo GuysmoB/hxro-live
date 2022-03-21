@@ -21,13 +21,13 @@ class App extends CandleAbstract {
   ohlc = [];
   telegramBot: any;
   urlPath = 'https://btc.history.hxro.io/1m';
-  databasePath = '/orderbook-data';
-  toDatabase = false;
+  databasePath = '/orderbook-data-trade';
+  toDatabase = true;
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private config: Config, private apiService: ApiService, private indicators: IndicatorsService) {
     super();
-    process.title = 'orderbook-data';
+    process.title = 'orderbook-data-trade';
     console.log('App started |', utils.getDate());
     firebase.initializeApp(config.firebaseConfig);
     this.telegramBot = new TelegramBot(config.token, { polling: false });
@@ -49,7 +49,7 @@ class App extends CandleAbstract {
 
     setInterval(async () => {
       let second = new Date().getSeconds();
-      if (second == 0 && second != lastTime) {
+      if (second == 50 && second != lastTime) {
         this.manageOb();
       }
 
@@ -69,50 +69,41 @@ class App extends CandleAbstract {
     this.snapshot.bids.sort((a, b) => b[0] - a[0]);
     this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
-    const res0p25 = this.utils.getVolumeDepth(this.snapshot, 0.25);
-    const res0p5 = this.utils.getVolumeDepth(this.snapshot, 0.5);
+    /* const res0p25 = this.utils.getVolumeDepth(this.snapshot, 0.25);
+    const res0p5 = this.utils.getVolumeDepth(this.snapshot, 0.5); */
     const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
-    const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
-    const delta0p25 = this.utils.round(res0p25.bidVolume - res0p25.askVolume, 2);
-    const delta0p5 = this.utils.round(res0p5.bidVolume - res0p5.askVolume, 2);
-    const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
-    const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
+    /* const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
     const ratio0p25 = this.utils.round((delta0p25 / (res0p25.bidVolume + res0p25.askVolume)) * 100, 2);
-    const ratio0p5 = this.utils.round((delta0p5 / (res0p5.bidVolume + res0p5.askVolume)) * 100, 2);
-    const ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
-    const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
+    const ratio0p5 = this.utils.round((delta0p5 / (res0p5.bidVolume + res0p5.askVolume)) * 100, 2); */
+    const ratio1 = this.utils.round(((res1.bidVolume - res1.askVolume) / (res1.bidVolume + res1.askVolume)) * 100, 2);
+    /* const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2); */
     
     try {
-      // Déclenché 10 sec après pour avoir le temps de récupérer toutes les données
-      setTimeout(async () => {
-        const allData = await this.apiService.getDataFromApi(this.urlPath);
-        const res = allData.data.slice();
-        const lastCandle = res[res.length - 2];
-        
-        this.ohlc.push({
-          close: lastCandle.close,
-          open: lastCandle.open,
-          high: lastCandle.high,
-          low: lastCandle.low,
-          time: lastCandle.time,
-          ratio0p25: ratio0p25,
-          ratio0p5: ratio0p5,
-          ratio1: ratio1,
-          ratio2p5: ratio2p5
-        });
+      const allData = await this.apiService.getDataFromApi(this.urlPath);
+      const res = allData.data.slice();
+      const lastCandle = res[res.length - 2];
+      
+      this.ohlc.push({
+        close: lastCandle.close,
+        open: lastCandle.open,
+        high: lastCandle.high,
+        low: lastCandle.low,
+        time: lastCandle.time,
+        ratio1,
+      });
 
-        console.log(
-          `------   ${this.utils.getDate()}  ------\n`+
-          `Depth  2.5% | Ratio% :  ${ratio2p5}\n`+
-          `Depth    1% | Ratio% :  ${ratio1}\n`+
-          `Depth  0.5% | Ratio% :  ${ratio0p5}\n`+
-          `Depth 0.25% | Ratio% :  ${ratio0p25}\n`+
-          `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
-          `Snapshot asks size :  ${this.snapshot.asks.length}\n`
-        ); 
+      console.log(
+        `------   ${this.utils.getDate()}  ------\n`+
+        `Depth    1% | Ratio% :  ${ratio1}\n`+
+        `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
+        `Snapshot asks size :  ${this.snapshot.asks.length}\n`
+      ); 
 
-        this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
-      }, 10*1000);
+      //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
+      if (this.toDatabase) {
+        await firebase.database().ref(this.databasePath).remove();
+        await firebase.database().ref(this.databasePath).push(ratio1);
+      } 
     } catch (error) {
       console.error('error Firebase : ' + error);
     }

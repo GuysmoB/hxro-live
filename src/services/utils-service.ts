@@ -69,8 +69,8 @@ export class UtilsService {
    */
   obUpdate(buffer: any[][], snapshot: any[][]) {
     const price = snapshot[0][0];
-    const bidLimitDepthPrice = price - (price * (10 / 100));
-    const askLimitDepthPrice = price + (price * (10 / 100));
+    const bidLimitDepthPrice = price - (price * (2 / 100));
+    const askLimitDepthPrice = price + (price * (2 / 100));
 
     try {
       for (let i = 0; i < buffer.length; i++) {
