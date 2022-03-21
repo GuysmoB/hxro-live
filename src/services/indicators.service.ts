@@ -90,7 +90,7 @@ export class IndicatorsService extends CandleAbstract {
     }
     const emaGains = this.ema(gains, 2 * window - 1);
     const emaLoss = this.ema(loss, 2 * window - 1);
-    return this.pointwise((a: number, b: number) => 100 - 100 / (1 + a / b), this.ema(gains, 2 * window - 1), this.ema(loss, 2 * window - 1));
+    return this.pointwise((a: number, b: number) => 100 - 100 / (1 + a / b), emaGains, emaLoss);
   }
 
   crossNumber(data: any, maData: any, periode: number): number {

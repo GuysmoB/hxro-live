@@ -14,7 +14,7 @@ import { IndicatorsService } from './services/indicators.service';
 
 class App extends CandleAbstract {
 
-  isSpot: true;
+  isSpot: false;
   obStream: any;
   snapshot: any;
   tmpBuffer = [];
@@ -69,53 +69,50 @@ class App extends CandleAbstract {
     this.snapshot.bids.sort((a, b) => b[0] - a[0]);
     this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
-
+    const res0p25 = this.utils.getVolumeDepth(this.snapshot, 0.25);
+    const res0p5 = this.utils.getVolumeDepth(this.snapshot, 0.5);
     const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
     const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
-    const res5 = this.utils.getVolumeDepth(this.snapshot, 5);
-    const res10 = this.utils.getVolumeDepth(this.snapshot, 10);
+    const delta0p25 = this.utils.round(res0p25.bidVolume - res0p25.askVolume, 2);
+    const delta0p5 = this.utils.round(res0p5.bidVolume - res0p5.askVolume, 2);
     const delta1 = this.utils.round(res1.bidVolume - res1.askVolume, 2);
     const delta2p5 = this.utils.round(res2p5.bidVolume - res2p5.askVolume, 2);
-    const delta5 = this.utils.round(res5.bidVolume - res5.askVolume, 2);
-    const delta10 = this.utils.round(res10.bidVolume - res10.askVolume, 2);
+    const ratio0p25 = this.utils.round((delta0p25 / (res0p25.bidVolume + res0p25.askVolume)) * 100, 2);
+    const ratio0p5 = this.utils.round((delta0p5 / (res0p5.bidVolume + res0p5.askVolume)) * 100, 2);
     const ratio1 = this.utils.round((delta1 / (res1.bidVolume + res1.askVolume)) * 100, 2);
     const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2);
-    const ratio5 = this.utils.round((delta5 / (res5.bidVolume + res5.askVolume)) * 100, 2);
-    const ratio10 = this.utils.round((delta10 / (res10.bidVolume + res10.askVolume)) * 100, 2);
-
+    
     try {
-      let rsi1 = [];
-      let rsi2p5 = [];
-
+      // Déclenché 10 sec après pour avoir le temps de récupérer toutes les données
       setTimeout(async () => {
         const allData = await this.apiService.getDataFromApi(this.urlPath);
         const res = allData.data.slice();
         const lastCandle = res[res.length - 2];
-        rsi1 = this.indicators.rsi(this.ohlc, 5, "ratio1");
-        rsi2p5 = this.indicators.rsi(this.ohlc, 5, "ratio2p5");
-
+        
         this.ohlc.push({
           close: lastCandle.close,
           open: lastCandle.open,
           high: lastCandle.high,
           low: lastCandle.low,
           time: lastCandle.time,
+          ratio0p25: ratio0p25,
+          ratio0p5: ratio0p5,
           ratio1: ratio1,
           ratio2p5: ratio2p5
         });
 
+        console.log(
+          `------   ${this.utils.getDate()}  ------\n`+
+          `Depth  2.5% | Ratio% :  ${ratio2p5}\n`+
+          `Depth    1% | Ratio% :  ${ratio1}\n`+
+          `Depth  0.5% | Ratio% :  ${ratio0p5}\n`+
+          `Depth 0.25% | Ratio% :  ${ratio0p25}\n`+
+          `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
+          `Snapshot asks size :  ${this.snapshot.asks.length}\n`
+        ); 
+
         this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
       }, 10*1000);
-
-      console.log(
-        `------   ${this.utils.getDate()}  ------\n`+
-        `Depth   10% | Ratio% :  ${ratio10}\n`+
-        `Depth    5% | Ratio% :  ${ratio5}\n`+
-        `Depth  2.5% | Ratio% :  ${ratio2p5} | RSI : ${rsi2p5[rsi2p5.length - 1]}\n`+
-        `Depth    1% | Ratio% :  ${ratio1} | RSI : ${rsi1[rsi1.length - 1]}\n`+
-        `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
-        `Snapshot asks size :  ${this.snapshot.asks.length}\n`
-      ); 
     } catch (error) {
       console.error('error Firebase : ' + error);
     }
