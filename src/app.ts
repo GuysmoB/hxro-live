@@ -92,11 +92,14 @@ class App extends CandleAbstract {
         ratio1,
       });
 
-      console.log(
+      /* console.log(
         `------   ${this.utils.getDate()}  ------\n`+
         `Depth    1% | Ratio% :  ${ratio1}\n`+
         `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
         `Snapshot asks size :  ${this.snapshot.asks.length}\n`
+      );  */
+      console.log(
+        `${this.utils.getDate()} | Ratio Depth 1% : ${ratio1}`
       ); 
 
       //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
