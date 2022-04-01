@@ -19,6 +19,7 @@ class App extends CandleAbstract {
   snapshot: any;
   tmpBuffer = [];
   ohlc = [];
+  ratios = [];
   telegramBot: any;
   urlPath = 'https://btc.history.hxro.io/1m';
   databasePath = '/orderbook-data-trade';
@@ -37,6 +38,7 @@ class App extends CandleAbstract {
     } else {
       this.getObStreamData('wss://fstream.binance.com/stream?streams=btcusdt@depth'); //futurs
     }
+    this.getVariation(5, [])
     this.main();
   }
 
@@ -83,6 +85,7 @@ class App extends CandleAbstract {
       const res = allData.data.slice();
       const lastCandle = res[res.length - 2];
       
+      this.ratios.push(ratio1);
       this.ohlc.push({
         close: lastCandle.close,
         open: lastCandle.open,
@@ -92,6 +95,7 @@ class App extends CandleAbstract {
         ratio1,
       });
 
+
       /* console.log(
         `------   ${this.utils.getDate()}  ------\n`+
         `Depth    1% | Ratio% :  ${ratio1}\n`+
@@ -99,7 +103,7 @@ class App extends CandleAbstract {
         `Snapshot asks size :  ${this.snapshot.asks.length}\n`
       );  */
       console.log(
-        `${this.utils.getDate()} | Ratio Depth 1% : ${ratio1}`
+        `${this.utils.getDate()} | Ratio Depth 1% : ${ratio1} | Variation ${this.getVariation(10, this.ratios)}`
       ); 
 
       //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
@@ -113,6 +117,16 @@ class App extends CandleAbstract {
   }
 
 
+  getVariation(lookback: any, ratios: any) {
+    /* lookback = 2;
+    ratios = [-8.63, -7.82, -5.8, -3.03, -0.01, -10.8, -8.76, -4.82] */
+    if (ratios.length >= lookback) {
+      const tmpArray = ratios.slice(-lookback);
+      const max = Math.max(...tmpArray);
+      const min = Math.min(...tmpArray);
+      return this.utils.round(max - min , 2);
+    }
+  }
 
   /**
    * Ecoute le WS et ajuste high/low à chaque tick.
