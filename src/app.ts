@@ -103,7 +103,7 @@ class App extends CandleAbstract {
         `Snapshot asks size :  ${this.snapshot.asks.length}\n`
       );  */
       console.log(
-        `${this.utils.getDate()} | Ratio Depth 1% : ${ratio1} | Variation ${this.getVariation(10, this.ratios)}`
+        `${this.utils.getDate()} | Ratio Depth 1% : ${ratio1} | MA : ${this.utils.mean(this.ratios.slice(-10))}`
       ); 
 
       //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
@@ -118,8 +118,6 @@ class App extends CandleAbstract {
 
 
   getVariation(lookback: any, ratios: any) {
-    /* lookback = 2;
-    ratios = [-8.63, -7.82, -5.8, -3.03, -0.01, -10.8, -8.76, -4.82] */
     if (ratios.length >= lookback) {
       const tmpArray = ratios.slice(-lookback);
       const max = Math.max(...tmpArray);
