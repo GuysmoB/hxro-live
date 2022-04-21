@@ -14,7 +14,7 @@ import { IndicatorsService } from './services/indicators.service';
 
 class App extends CandleAbstract {
 
-  isSpot: false;
+  isSpot: true;
   obStream: any;
   snapshot: any;
   tmpBuffer = [];
@@ -102,8 +102,14 @@ class App extends CandleAbstract {
         `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
         `Snapshot asks size :  ${this.snapshot.asks.length}\n`
       );  */
+
+      const mean = this.utils.mean(this.ratios.slice(-10)); 
+      const ecart = this.utils.round(Math.abs(ratio1 - mean), 2);
+      const $ecart = ratio1 < mean ? -ecart : ecart
       console.log(
-        `${this.utils.getDate()} | Ratio Depth 1% : ${ratio1} | MA : ${this.utils.mean(this.ratios.slice(-10))}`
+        `${this.utils.getDate()} | Ratio Depth 1% : ${this.addEndingSpace(ratio1, 6)}` + 
+        ` | MA : ${this.addEndingSpace(mean, 6)}` + 
+        ` | Ecart : ${$ecart}` 
       ); 
 
       //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
@@ -116,6 +122,9 @@ class App extends CandleAbstract {
     }
   }
 
+  addEndingSpace(num, totalLength) {
+    return String(num).padEnd(totalLength, ' ');
+  }
 
   getVariation(lookback: any, ratios: any) {
     if (ratios.length >= lookback) {
