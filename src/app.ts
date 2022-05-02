@@ -115,7 +115,11 @@ class App extends CandleAbstract {
       //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
       if (this.toDatabase) {
         await firebase.database().ref(this.databasePath).remove();
-        await firebase.database().ref(this.databasePath).push(ratio1);
+        await firebase.database().ref(this.databasePath).push({
+          ratio: ratio1,
+          mean,
+          ecart: $ecart
+        });
       } 
     } catch (error) {
       console.error('error Firebase : ' + error);
