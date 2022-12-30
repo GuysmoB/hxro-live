@@ -14,12 +14,13 @@ import { IndicatorsService } from './services/indicators.service';
 
 class App extends CandleAbstract {
 
-  isSpot: true;
+  isSpot: false;
   obStream: any;
   snapshot: any;
   tmpBuffer = [];
   ohlc = [];
   telegramBot: any;
+  ratios = [];
   urlPath = 'https://btc.history.hxro.io/1m';
   databasePath = '/orderbook-data-trade';
   toDatabase = false;
@@ -51,7 +52,7 @@ class App extends CandleAbstract {
       let second = new Date().getSeconds();
       /* console.log('lastTisecondme : ', second); */
 
-      if (second == 30 ||second == 0/* && second != lastTime */) {
+      if (second == 30 || second == 0/* && second != lastTime */) {
         /* lastTime = second; */
         this.manageOb();
       }
@@ -79,12 +80,13 @@ class App extends CandleAbstract {
     //const ratio0p5 = this.utils.round(((res0p5.bidVolume - res0p5.askVolume) / (res0p5.bidVolume + res0p5.askVolume)) * 100, 2);
     const ratio1 = this.utils.round(((res1.bidVolume - res1.askVolume) / (res1.bidVolume + res1.askVolume)) * 100, 2);
     /* const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2); */
-    
+
     try {
       const allData = await this.apiService.getDataFromApi(this.urlPath);
       const res = allData.data.slice();
       const lastCandle = res[res.length - 2];
-      
+
+      this.ratios.push(ratio1);
       this.ohlc.push({
         close: lastCandle.close,
         open: lastCandle.open,
@@ -94,20 +96,42 @@ class App extends CandleAbstract {
         ratio1,
       });
 
+      const mean = this.utils.mean(this.ratios.slice(-10)); 
+      const ecart = this.utils.round(Math.abs(ratio1 - mean), 2);
+      const $ecart = ratio1 < mean ? -ecart : ecart
+
       console.log(
         `${this.utils.getDate()} | Ratio 1% : ${ratio1}`
-      ); 
+      );
+
+      /* console.log(
+        `${this.utils.getDate()} | Ratio Depth 1% : ${this.addEndingSpace(ratio1, 6)}` + 
+        ` | MA : ${this.addEndingSpace(mean, 6)}` + 
+        ` | Ecart : ${$ecart}` 
+      );  */
 
       //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
       if (this.toDatabase) {
         await firebase.database().ref(this.databasePath).remove();
         await firebase.database().ref(this.databasePath).push(ratio1);
-      } 
+      }
     } catch (error) {
       console.error('error Firebase : ' + error);
     }
   }
 
+  addEndingSpace(num, totalLength) {
+    return String(num).padEnd(totalLength, ' ');
+  }
+
+  getVariation(lookback: any, ratios: any) {
+    if (ratios.length >= lookback) {
+      const tmpArray = ratios.slice(-lookback);
+      const max = Math.max(...tmpArray);
+      const min = Math.min(...tmpArray);
+      return this.utils.round(max - min , 2);
+    }
+  }
 
 
   /**
