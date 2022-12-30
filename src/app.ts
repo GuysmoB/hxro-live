@@ -14,7 +14,7 @@ import { IndicatorsService } from './services/indicators.service';
 
 class App extends CandleAbstract {
 
-  isSpot: false;
+  isSpot: true;
   obStream: any;
   snapshot: any;
   tmpBuffer = [];

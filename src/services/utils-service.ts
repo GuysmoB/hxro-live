@@ -15,6 +15,15 @@ export class UtilsService {
   }
 
 
+  mean(series: Array<number>): any {
+    let sum = 0;
+    for (let i = 0; i < series.length; i++) {
+      sum += series[i];
+    }
+    return this.round(sum / series.length, 2);
+  }
+
+
   getVolumeDepth(snapshot: any, depth: number) {
     const price = snapshot.bids[0][0];
     const bidLimitDepthPrice = price - (price * (depth / 100));
