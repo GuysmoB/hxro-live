@@ -22,7 +22,7 @@ class App extends CandleAbstract {
   telegramBot: any;
   urlPath = 'https://btc.history.hxro.io/1m';
   databasePath = '/orderbook-data-trade';
-  toDatabase = true;
+  toDatabase = false;
   token = 'b15346f6544b4d289139b2feba668b20';
 
   constructor(private utils: UtilsService, private config: Config, private apiService: ApiService, private indicators: IndicatorsService) {
@@ -49,12 +49,14 @@ class App extends CandleAbstract {
 
     setInterval(async () => {
       let second = new Date().getSeconds();
-      if (second == 50 && second != lastTime) {
+      /* console.log('lastTisecondme : ', second); */
+
+      if (second == 30 ||second == 0/* && second != lastTime */) {
+        /* lastTime = second; */
         this.manageOb();
       }
+    }, 1000);
 
-      lastTime = second;
-    }, 500);
   }
 
   /**
@@ -69,12 +71,12 @@ class App extends CandleAbstract {
     this.snapshot.bids.sort((a, b) => b[0] - a[0]);
     this.snapshot.asks.sort((a, b) => a[0] - b[0]);
 
-    /* const res0p25 = this.utils.getVolumeDepth(this.snapshot, 0.25);
-    const res0p5 = this.utils.getVolumeDepth(this.snapshot, 0.5); */
+    //const res0p25 = this.utils.getVolumeDepth(this.snapshot, 0.25);
+    //const res0p5 = this.utils.getVolumeDepth(this.snapshot, 0.5);
     const res1 = this.utils.getVolumeDepth(this.snapshot, 1);
-    /* const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
-    const ratio0p25 = this.utils.round((delta0p25 / (res0p25.bidVolume + res0p25.askVolume)) * 100, 2);
-    const ratio0p5 = this.utils.round((delta0p5 / (res0p5.bidVolume + res0p5.askVolume)) * 100, 2); */
+    //const res2p5 = this.utils.getVolumeDepth(this.snapshot, 2.5);
+    //const ratio0p25 = this.utils.round(((res0p25.bidVolume - res0p25.askVolume) / (res0p25.bidVolume + res0p25.askVolume)) * 100, 2);
+    //const ratio0p5 = this.utils.round(((res0p5.bidVolume - res0p5.askVolume) / (res0p5.bidVolume + res0p5.askVolume)) * 100, 2);
     const ratio1 = this.utils.round(((res1.bidVolume - res1.askVolume) / (res1.bidVolume + res1.askVolume)) * 100, 2);
     /* const ratio2p5 = this.utils.round((delta2p5 / (res2p5.bidVolume + res2p5.askVolume)) * 100, 2); */
     
@@ -93,10 +95,7 @@ class App extends CandleAbstract {
       });
 
       console.log(
-        `------   ${this.utils.getDate()}  ------\n`+
-        `Depth    1% | Ratio% :  ${ratio1}\n`+
-        `Snapshot bids size :  ${this.snapshot.bids.length}\n`+
-        `Snapshot asks size :  ${this.snapshot.asks.length}\n`
+        `${this.utils.getDate()} | Ratio 1% : ${ratio1}`
       ); 
 
       //this.toDatabase ? await firebase.database().ref(this.databasePath).push(this.ohlc[this.ohlc.length - 1]) : '';
